@@ -1,130 +1,88 @@
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+const editCanvas = document.getElementById("editCanvas");
+const ctx = editCanvas.getContext("2d");
 
-const imageInput = document.getElementById("imageInput");
-const projectInput = document.getElementById("projectInput");
-const emptyState = document.getElementById("emptyState");
-const coordsEl = document.getElementById("coords");
+const fileInput = document.getElementById("fileInput");
+const lengthInput = document.getElementById("lengthInput");
+const unitInput = document.getElementById("unitInput");
 
-const realDistanceInput = document.getElementById("realDistance");
-const applyCalibrationBtn = document.getElementById("applyCalibration");
-const clearCalibrationBtn = document.getElementById("clearCalibration");
-const scaleInfo = document.getElementById("scaleInfo");
+const setScaleBtn = document.getElementById("setScaleBtn");
+const clearScaleBtn = document.getElementById("clearScaleBtn");
+const closeRoomBtn = document.getElementById("closeRoomBtn");
+const undoPointBtn = document.getElementById("undoPointBtn");
+const deleteRoomBtn = document.getElementById("deleteRoomBtn");
+const clearAllBtn = document.getElementById("clearAllBtn");
+const generateBtn = document.getElementById("generateBtn");
+const downloadBtn = document.getElementById("downloadBtn");
 
-const roomNameInput = document.getElementById("roomName");
-const closeRoomBtn = document.getElementById("closeRoom");
-const undoPointBtn = document.getElementById("undoPoint");
-const clearCurrentBtn = document.getElementById("clearCurrent");
-const roomsList = document.getElementById("roomsList");
+const statusImage = document.getElementById("statusImage");
+const statusScale = document.getElementById("statusScale");
+const statusRooms = document.getElementById("statusRooms");
+const statusMode = document.getElementById("statusMode");
 
-const gridSpacingInput = document.getElementById("gridSpacing");
-const gridColorInput = document.getElementById("gridColor");
-const gridOpacityInput = document.getElementById("gridOpacity");
-const gridWidthInput = document.getElementById("gridWidth");
-const showOutlinesInput = document.getElementById("showOutlines");
-const gridPerRoomOriginInput = document.getElementById("gridPerRoomOrigin");
+const placeholder = document.getElementById("placeholder");
+const previewSection = document.getElementById("previewSection");
+const previewImage = document.getElementById("previewImage");
 
-const fitViewBtn = document.getElementById("fitView");
-const exportPngBtn = document.getElementById("exportPng");
-const saveProjectBtn = document.getElementById("saveProject");
-const modeHelp = document.getElementById("modeHelp");
+let img = null;
+let fileName = "rzut";
+let drawBox = null;
 
-let mode = "pan";
-let image = null;
-let imageDataUrl = null;
-let imageName = null;
-
-let view = { scale: 1, x: 0, y: 0 };
-let dpr = window.devicePixelRatio || 1;
-
+let scalePoints = [];
 let pxPerMeter = null;
-let calibrationPoints = [];
-let currentPoints = [];
+
+let currentRoom = [];
 let rooms = [];
 
-let isDragging = false;
-let dragStart = { x: 0, y: 0 };
-let dragViewStart = { x: 0, y: 0 };
-let pointerDown = null;
+let resultDataUrl = null;
 
-const modeHelpText = {
-  pan: "Tryb „Przesuwaj”: przeciągaj rzut, kółkiem myszy przybliżaj.",
-  calibrate: "Tryb „Kalibruj”: kliknij dwa punkty znanego wymiaru, potem wpisz wymiar i zatwierdź.",
-  room: "Tryb „Rysuj pomieszczenie”: klikaj narożniki pomieszczenia/korytarza po wewnętrznej stronie ścian."
-};
+const GRID_COLOR = "rgba(115, 115, 115, 0.55)";
+const POINT_COLOR = "rgba(180, 60, 30, 0.95)";
+const ROOM_COLOR = "rgba(80, 80, 80, 0.9)";
+const SCALE_COLOR = "rgba(180, 40, 40, 0.95)";
 
-function resizeCanvas() {
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = Math.max(1, Math.floor(rect.width * dpr));
-  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-  canvas.style.width = `${rect.width}px`;
-  canvas.style.height = `${rect.height}px`;
+function setupCanvasSize() {
+  const rect = editCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+
+  editCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+  editCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   draw();
 }
 
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
+window.addEventListener("resize", setupCanvasSize);
+setupCanvasSize();
 
-function setMode(nextMode) {
-  mode = nextMode;
-  document.querySelectorAll(".mode").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.mode === mode);
-  });
-  modeHelp.textContent = modeHelpText[mode];
-}
-
-document.querySelectorAll(".mode").forEach(btn => {
-  btn.addEventListener("click", () => setMode(btn.dataset.mode));
-});
-
-function imageToScreen(pt) {
-  return { x: pt.x * view.scale + view.x, y: pt.y * view.scale + view.y };
-}
-
-function screenToImage(pt) {
-  return { x: (pt.x - view.x) / view.scale, y: (pt.y - view.y) / view.scale };
-}
-
-function getCanvasPoint(event) {
-  const rect = canvas.getBoundingClientRect();
-  return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-}
-
-function fitImageToView() {
-  if (!image) return;
-  const rect = canvas.getBoundingClientRect();
-  const padding = 32;
-  const sx = (rect.width - padding * 2) / image.naturalWidth;
-  const sy = (rect.height - padding * 2) / image.naturalHeight;
-  view.scale = Math.min(sx, sy);
-  view.x = (rect.width - image.naturalWidth * view.scale) / 2;
-  view.y = (rect.height - image.naturalHeight * view.scale) / 2;
-  draw();
-}
-
-imageInput.addEventListener("change", async (event) => {
-  const file = event.target.files?.[0];
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
   if (!file) return;
 
-  imageName = file.name;
-  imageDataUrl = await fileToDataUrl(file);
+  fileName = file.name.replace(/\.[^.]+$/, "");
 
-  const img = new Image();
-  img.onload = () => {
-    image = img;
-    emptyState.style.display = "none";
-    calibrationPoints = [];
-    currentPoints = [];
-    rooms = [];
+  const dataUrl = await readFileAsDataUrl(file);
+  const loaded = new Image();
+
+  loaded.onload = () => {
+    img = loaded;
+    scalePoints = [];
     pxPerMeter = null;
-    updateScaleInfo();
-    updateRoomsList();
-    fitImageToView();
+    currentRoom = [];
+    rooms = [];
+    resultDataUrl = null;
+
+    placeholder.classList.add("hidden");
+    previewSection.classList.add("hidden");
+    downloadBtn.disabled = true;
+
+    updateStatus("Kliknij dwa punkty do skali.");
+    draw();
   };
-  img.src = imageDataUrl;
+
+  loaded.src = dataUrl;
 });
 
-function fileToDataUrl(file) {
+function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
@@ -133,543 +91,391 @@ function fileToDataUrl(file) {
   });
 }
 
-function draw() {
-  const rect = canvas.getBoundingClientRect();
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, rect.width, rect.height);
+editCanvas.addEventListener("click", (event) => {
+  if (!img || !drawBox) return;
 
-  if (!image) return;
+  const point = getImagePoint(event);
+  if (!point) return;
 
-  ctx.save();
-  ctx.translate(view.x, view.y);
-  ctx.scale(view.scale, view.scale);
+  if (pxPerMeter === null && scalePoints.length < 2) {
+    scalePoints.push(point);
 
-  ctx.drawImage(image, 0, 0);
-
-  drawRoomsAndGrids(ctx, {
-    scaleAware: true,
-    includeImage: false,
-    showCurrent: true
-  });
-
-  ctx.restore();
-
-  drawCalibrationPoints();
-}
-
-function drawRoomsAndGrids(targetCtx, options = {}) {
-  const scaleAware = options.scaleAware ?? false;
-  const showCurrent = options.showCurrent ?? true;
-
-  const settings = getGridSettings();
-
-  for (const room of rooms) {
-    if (room.grid !== false && pxPerMeter) {
-      drawGridInsidePolygon(targetCtx, room.points, settings, pxPerMeter, scaleAware);
+    if (scalePoints.length === 1) {
+      updateStatus("Kliknij drugi koniec odcinka do skali.");
+    } else {
+      updateStatus("Wpisz długość odcinka i kliknij „Zapisz skalę”.");
     }
 
-    if (settings.showOutlines) {
-      drawPolygon(targetCtx, room.points, "rgba(70,70,70,0.75)", scaleAware ? 1.5 / view.scale : 2, true);
-    }
-  }
-
-  if (showCurrent && currentPoints.length > 0) {
-    drawPolyline(targetCtx, currentPoints, "rgba(180, 80, 30, 0.95)", scaleAware ? 2 / view.scale : 2);
-
-    for (const pt of currentPoints) {
-      drawPointInImageSpace(targetCtx, pt, "rgba(180, 80, 30, 0.95)", scaleAware ? 5 / view.scale : 5);
-    }
-  }
-}
-
-function getGridSettings() {
-  return {
-    spacingM: Math.max(0.01, parseFloat(gridSpacingInput.value) || 1),
-    color: gridColorInput.value || "#777777",
-    opacity: Math.max(0.05, Math.min(1, parseFloat(gridOpacityInput.value) || 0.45)),
-    width: Math.max(1, parseFloat(gridWidthInput.value) || 1),
-    showOutlines: showOutlinesInput.checked,
-    perRoomOrigin: gridPerRoomOriginInput.checked
-  };
-}
-
-function hexToRgba(hex, alpha) {
-  let value = hex.replace("#", "");
-  if (value.length === 3) {
-    value = value.split("").map(char => char + char).join("");
-  }
-  const int = parseInt(value, 16);
-  const r = (int >> 16) & 255;
-  const g = (int >> 8) & 255;
-  const b = int & 255;
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function drawGridInsidePolygon(targetCtx, polygon, settings, pxPerMeterValue, scaleAware) {
-  if (polygon.length < 3) return;
-
-  const step = settings.spacingM * pxPerMeterValue;
-  if (!Number.isFinite(step) || step <= 0) return;
-
-  const bounds = getBounds(polygon);
-  const lineWidth = scaleAware ? settings.width / view.scale : settings.width;
-  const color = hexToRgba(settings.color, settings.opacity);
-
-  targetCtx.save();
-  pathPolygon(targetCtx, polygon);
-  targetCtx.clip();
-
-  targetCtx.strokeStyle = color;
-  targetCtx.lineWidth = lineWidth;
-  targetCtx.setLineDash([]);
-
-  const startX = settings.perRoomOrigin
-    ? bounds.minX
-    : Math.floor(bounds.minX / step) * step;
-
-  const startY = settings.perRoomOrigin
-    ? bounds.minY
-    : Math.floor(bounds.minY / step) * step;
-
-  for (let x = startX; x <= bounds.maxX + step * 0.5; x += step) {
-    targetCtx.beginPath();
-    targetCtx.moveTo(x, bounds.minY - step);
-    targetCtx.lineTo(x, bounds.maxY + step);
-    targetCtx.stroke();
-  }
-
-  for (let y = startY; y <= bounds.maxY + step * 0.5; y += step) {
-    targetCtx.beginPath();
-    targetCtx.moveTo(bounds.minX - step, y);
-    targetCtx.lineTo(bounds.maxX + step, y);
-    targetCtx.stroke();
-  }
-
-  targetCtx.restore();
-}
-
-function drawCalibrationPoints() {
-  if (!calibrationPoints.length) return;
-
-  ctx.save();
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-  const screenPts = calibrationPoints.map(imageToScreen);
-  ctx.strokeStyle = "rgba(180, 40, 40, 0.95)";
-  ctx.fillStyle = "rgba(180, 40, 40, 0.95)";
-  ctx.lineWidth = 2;
-
-  if (screenPts.length === 2) {
-    ctx.beginPath();
-    ctx.moveTo(screenPts[0].x, screenPts[0].y);
-    ctx.lineTo(screenPts[1].x, screenPts[1].y);
-    ctx.stroke();
-  }
-
-  for (const pt of screenPts) {
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.restore();
-}
-
-function pathPolygon(targetCtx, points) {
-  targetCtx.beginPath();
-  targetCtx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    targetCtx.lineTo(points[i].x, points[i].y);
-  }
-  targetCtx.closePath();
-}
-
-function drawPolygon(targetCtx, points, color, lineWidth, dashed = false) {
-  if (points.length < 2) return;
-  targetCtx.save();
-  targetCtx.strokeStyle = color;
-  targetCtx.lineWidth = lineWidth;
-  targetCtx.setLineDash(dashed ? [8 * lineWidth, 5 * lineWidth] : []);
-  pathPolygon(targetCtx, points);
-  targetCtx.stroke();
-  targetCtx.restore();
-}
-
-function drawPolyline(targetCtx, points, color, lineWidth) {
-  if (points.length < 1) return;
-  targetCtx.save();
-  targetCtx.strokeStyle = color;
-  targetCtx.lineWidth = lineWidth;
-  targetCtx.setLineDash([]);
-  targetCtx.beginPath();
-  targetCtx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    targetCtx.lineTo(points[i].x, points[i].y);
-  }
-  targetCtx.stroke();
-  targetCtx.restore();
-}
-
-function drawPointInImageSpace(targetCtx, pt, color, radius) {
-  targetCtx.save();
-  targetCtx.fillStyle = color;
-  targetCtx.beginPath();
-  targetCtx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
-  targetCtx.fill();
-  targetCtx.restore();
-}
-
-function getBounds(points) {
-  return points.reduce((acc, pt) => ({
-    minX: Math.min(acc.minX, pt.x),
-    minY: Math.min(acc.minY, pt.y),
-    maxX: Math.max(acc.maxX, pt.x),
-    maxY: Math.max(acc.maxY, pt.y)
-  }), {
-    minX: Infinity,
-    minY: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity
-  });
-}
-
-canvas.addEventListener("pointerdown", (event) => {
-  if (!image) return;
-  canvas.setPointerCapture(event.pointerId);
-  const pt = getCanvasPoint(event);
-  pointerDown = { ...pt };
-  isDragging = mode === "pan";
-  dragStart = pt;
-  dragViewStart = { x: view.x, y: view.y };
-});
-
-canvas.addEventListener("pointermove", (event) => {
-  const screenPt = getCanvasPoint(event);
-  if (image) {
-    const imgPt = screenToImage(screenPt);
-    coordsEl.textContent = `x: ${imgPt.x.toFixed(0)} px, y: ${imgPt.y.toFixed(0)} px`;
-  }
-
-  if (isDragging && mode === "pan") {
-    view.x = dragViewStart.x + (screenPt.x - dragStart.x);
-    view.y = dragViewStart.y + (screenPt.y - dragStart.y);
-    draw();
-  }
-});
-
-canvas.addEventListener("pointerup", (event) => {
-  if (!image) return;
-  const pt = getCanvasPoint(event);
-  const moved = pointerDown ? Math.hypot(pt.x - pointerDown.x, pt.y - pointerDown.y) : 0;
-
-  if (moved < 5 && mode !== "pan") {
-    handleCanvasClick(pt);
-  }
-
-  isDragging = false;
-  pointerDown = null;
-});
-
-canvas.addEventListener("wheel", (event) => {
-  if (!image) return;
-  event.preventDefault();
-
-  const pt = getCanvasPoint(event);
-  const before = screenToImage(pt);
-  const zoom = event.deltaY < 0 ? 1.12 : 1 / 1.12;
-  view.scale = clamp(view.scale * zoom, 0.05, 20);
-  const afterScreen = imageToScreen(before);
-  view.x += pt.x - afterScreen.x;
-  view.y += pt.y - afterScreen.y;
-  draw();
-}, { passive: false });
-
-function handleCanvasClick(screenPt) {
-  const imgPt = screenToImage(screenPt);
-
-  if (imgPt.x < 0 || imgPt.y < 0 || imgPt.x > image.naturalWidth || imgPt.y > image.naturalHeight) {
-    return;
-  }
-
-  if (mode === "calibrate") {
-    if (calibrationPoints.length >= 2) calibrationPoints = [];
-    calibrationPoints.push(imgPt);
-    if (calibrationPoints.length === 2) {
-      updateScaleInfo("Wpisz rzeczywisty wymiar i kliknij „Zastosuj kalibrację”.");
-    }
     draw();
     return;
   }
 
-  if (mode === "room") {
-    currentPoints.push(imgPt);
-    draw();
-  }
-}
-
-applyCalibrationBtn.addEventListener("click", () => {
-  if (calibrationPoints.length !== 2) {
-    alert("Najpierw kliknij dwa punkty kalibracji na rysunku.");
+  if (pxPerMeter === null) {
+    updateStatus("Najpierw zapisz skalę.");
     return;
   }
 
-  const realDistance = parseFloat(realDistanceInput.value);
-  if (!Number.isFinite(realDistance) || realDistance <= 0) {
-    alert("Wpisz poprawny wymiar rzeczywisty w metrach.");
-    return;
-  }
-
-  const pixelDistance = distance(calibrationPoints[0], calibrationPoints[1]);
-  pxPerMeter = pixelDistance / realDistance;
-  updateScaleInfo();
+  currentRoom.push(point);
+  updateStatus("Klikaj kolejne narożniki albo zamknij pokój.");
   draw();
 });
 
-clearCalibrationBtn.addEventListener("click", () => {
-  calibrationPoints = [];
+setScaleBtn.addEventListener("click", () => {
+  if (!img) {
+    alert("Najpierw wgraj obraz.");
+    return;
+  }
+
+  if (scalePoints.length !== 2) {
+    alert("Kliknij na obrazie dwa końce znanego odcinka.");
+    return;
+  }
+
+  const value = Number(lengthInput.value);
+  if (!Number.isFinite(value) || value <= 0) {
+    alert("Wpisz poprawną długość.");
+    return;
+  }
+
+  const meters = unitInput.value === "cm" ? value / 100 : value;
+  const pixelDistance = distance(scalePoints[0], scalePoints[1]);
+
+  pxPerMeter = pixelDistance / meters;
+  updateStatus("Skala zapisana. Teraz obrysuj pokoje.");
+  draw();
+});
+
+clearScaleBtn.addEventListener("click", () => {
+  scalePoints = [];
   pxPerMeter = null;
-  updateScaleInfo();
+  currentRoom = [];
+  rooms = [];
+  resultDataUrl = null;
+  downloadBtn.disabled = true;
+  previewSection.classList.add("hidden");
+  updateStatus(img ? "Kliknij dwa punkty do skali." : "Wgraj obraz.");
   draw();
 });
-
-function updateScaleInfo(extra = "") {
-  if (!pxPerMeter) {
-    scaleInfo.textContent = extra || "Skala: nieustalona";
-    return;
-  }
-  scaleInfo.textContent = `Skala: 1 m = ${pxPerMeter.toFixed(2)} px. ${extra}`;
-}
 
 closeRoomBtn.addEventListener("click", () => {
-  if (currentPoints.length < 3) {
-    alert("Pomieszczenie musi mieć co najmniej 3 punkty.");
+  if (!img) {
+    alert("Najpierw wgraj obraz.");
     return;
   }
 
-  const name = roomNameInput.value.trim() || `Pomieszczenie ${rooms.length + 1}`;
-  rooms.push({
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-    name,
-    points: currentPoints.map(pt => ({ x: pt.x, y: pt.y })),
-    grid: true
-  });
+  if (pxPerMeter === null) {
+    alert("Najpierw ustaw skalę.");
+    return;
+  }
 
-  currentPoints = [];
-  roomNameInput.value = `Pomieszczenie ${rooms.length + 1}`;
-  updateRoomsList();
+  if (currentRoom.length < 3) {
+    alert("Pokój musi mieć minimum 3 narożniki.");
+    return;
+  }
+
+  rooms.push(currentRoom.map(p => ({ x: p.x, y: p.y })));
+  currentRoom = [];
+
+  updateStatus("Pokój zapisany. Możesz obrysować kolejny.");
   draw();
 });
 
 undoPointBtn.addEventListener("click", () => {
-  currentPoints.pop();
+  if (currentRoom.length > 0) {
+    currentRoom.pop();
+  } else if (pxPerMeter === null && scalePoints.length > 0) {
+    scalePoints.pop();
+  }
+
+  draw();
+  updateStatus();
+});
+
+deleteRoomBtn.addEventListener("click", () => {
+  rooms.pop();
+  draw();
+  updateStatus("Usunięto ostatni pokój.");
+});
+
+clearAllBtn.addEventListener("click", () => {
+  if (!confirm("Wyczyścić skalę, pokoje i podgląd?")) return;
+
+  scalePoints = [];
+  pxPerMeter = null;
+  currentRoom = [];
+  rooms = [];
+  resultDataUrl = null;
+  downloadBtn.disabled = true;
+  previewSection.classList.add("hidden");
+
+  updateStatus(img ? "Kliknij dwa punkty do skali." : "Wgraj obraz.");
   draw();
 });
 
-clearCurrentBtn.addEventListener("click", () => {
-  currentPoints = [];
-  draw();
-});
-
-function updateRoomsList() {
-  roomsList.innerHTML = "";
-
-  if (!rooms.length) {
-    const empty = document.createElement("p");
-    empty.className = "hint";
-    empty.textContent = "Brak zapisanych pomieszczeń.";
-    roomsList.appendChild(empty);
+generateBtn.addEventListener("click", () => {
+  if (!img) {
+    alert("Najpierw wgraj obraz.");
     return;
   }
 
-  rooms.forEach((room, index) => {
-    const item = document.createElement("div");
-    item.className = "room-item";
+  if (pxPerMeter === null) {
+    alert("Najpierw ustaw skalę.");
+    return;
+  }
 
-    const top = document.createElement("div");
-    top.className = "room-top";
+  if (rooms.length === 0) {
+    alert("Najpierw obrysuj przynajmniej jeden pokój/korytarz.");
+    return;
+  }
 
-    const title = document.createElement("div");
-    title.innerHTML = `<div class="room-title">${escapeHtml(room.name)}</div><div class="room-meta">${room.points.length} pkt</div>`;
+  resultDataUrl = makeResultImage();
+  previewImage.src = resultDataUrl;
+  previewSection.classList.remove("hidden");
+  downloadBtn.disabled = false;
+  updateStatus("Podgląd gotowy. Możesz pobrać PNG.");
+});
 
-    const checkboxLabel = document.createElement("label");
-    checkboxLabel.className = "check";
-    checkboxLabel.innerHTML = `<input type="checkbox" ${room.grid !== false ? "checked" : ""} /> siatka`;
-    checkboxLabel.querySelector("input").addEventListener("change", (event) => {
-      room.grid = event.target.checked;
-      draw();
-    });
+downloadBtn.addEventListener("click", () => {
+  if (!resultDataUrl) return;
 
-    top.appendChild(title);
-    top.appendChild(checkboxLabel);
+  const link = document.createElement("a");
+  link.href = resultDataUrl;
+  link.download = `${safeName(fileName)}_siatka_1x1m.png`;
+  link.click();
+});
 
-    const actions = document.createElement("div");
-    actions.className = "room-actions";
+function draw() {
+  const rect = editCanvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
 
-    const editBtn = document.createElement("button");
-    editBtn.className = "secondary";
-    editBtn.textContent = "Edytuj";
-    editBtn.addEventListener("click", () => {
-      currentPoints = room.points.map(pt => ({ ...pt }));
-      roomNameInput.value = room.name;
-      rooms.splice(index, 1);
-      updateRoomsList();
-      setMode("room");
-      draw();
-    });
+  if (!img) return;
 
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "danger";
-    deleteBtn.textContent = "Usuń";
-    deleteBtn.addEventListener("click", () => {
-      rooms.splice(index, 1);
-      updateRoomsList();
-      draw();
-    });
+  drawBox = getDrawBox(rect.width, rect.height, img.naturalWidth, img.naturalHeight);
 
-    actions.appendChild(editBtn);
-    actions.appendChild(deleteBtn);
+  ctx.drawImage(img, drawBox.x, drawBox.y, drawBox.w, drawBox.h);
 
-    item.appendChild(top);
-    item.appendChild(actions);
-    roomsList.appendChild(item);
-  });
+  drawSavedRooms();
+  drawCurrentRoom();
+  drawScaleLine();
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+function getDrawBox(canvasW, canvasH, imageW, imageH) {
+  const margin = 12;
+  const scale = Math.min(
+    (canvasW - margin * 2) / imageW,
+    (canvasH - margin * 2) / imageH
+  );
+
+  const w = imageW * scale;
+  const h = imageH * scale;
+
+  return {
+    x: (canvasW - w) / 2,
+    y: (canvasH - h) / 2,
+    w,
+    h,
+    scale
+  };
+}
+
+function getImagePoint(event) {
+  const rect = editCanvas.getBoundingClientRect();
+  const canvasX = event.clientX - rect.left;
+  const canvasY = event.clientY - rect.top;
+
+  const x = (canvasX - drawBox.x) / drawBox.scale;
+  const y = (canvasY - drawBox.y) / drawBox.scale;
+
+  if (x < 0 || y < 0 || x > img.naturalWidth || y > img.naturalHeight) {
+    return null;
+  }
+
+  return { x, y };
+}
+
+function toCanvasPoint(point) {
+  return {
+    x: drawBox.x + point.x * drawBox.scale,
+    y: drawBox.y + point.y * drawBox.scale
+  };
+}
+
+function drawSavedRooms() {
+  ctx.save();
+  ctx.strokeStyle = ROOM_COLOR;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 5]);
+
+  for (const room of rooms) {
+    const points = room.map(toCanvasPoint);
+    drawClosedPath(points);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawCurrentRoom() {
+  if (currentRoom.length === 0) return;
+
+  const points = currentRoom.map(toCanvasPoint);
+
+  ctx.save();
+  ctx.strokeStyle = POINT_COLOR;
+  ctx.fillStyle = POINT_COLOR;
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+
+  for (const point of points) {
+    drawDot(point, 5);
+  }
+
+  ctx.restore();
+}
+
+function drawScaleLine() {
+  if (scalePoints.length === 0) return;
+
+  const points = scalePoints.map(toCanvasPoint);
+
+  ctx.save();
+  ctx.strokeStyle = SCALE_COLOR;
+  ctx.fillStyle = SCALE_COLOR;
+  ctx.lineWidth = 3;
+
+  if (points.length === 2) {
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    ctx.lineTo(points[1].x, points[1].y);
+    ctx.stroke();
+  }
+
+  for (const point of points) {
+    drawDot(point, 6);
+  }
+
+  ctx.restore();
+}
+
+function drawClosedPath(points) {
+  if (points.length === 0) return;
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+
+  ctx.closePath();
+}
+
+function drawDot(point, radius) {
+  ctx.beginPath();
+  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function makeResultImage() {
+  const out = document.createElement("canvas");
+  out.width = img.naturalWidth;
+  out.height = img.naturalHeight;
+
+  const outCtx = out.getContext("2d");
+  outCtx.drawImage(img, 0, 0);
+
+  for (const room of rooms) {
+    drawGridInRoom(outCtx, room);
+  }
+
+  return out.toDataURL("image/png");
+}
+
+function drawGridInRoom(outCtx, room) {
+  const step = pxPerMeter; // 1 m
+  const bounds = getBounds(room);
+
+  outCtx.save();
+
+  outCtx.beginPath();
+  outCtx.moveTo(room[0].x, room[0].y);
+  for (let i = 1; i < room.length; i++) {
+    outCtx.lineTo(room[i].x, room[i].y);
+  }
+  outCtx.closePath();
+  outCtx.clip();
+
+  outCtx.strokeStyle = GRID_COLOR;
+  outCtx.lineWidth = Math.max(1, img.naturalWidth / 1800);
+
+  const startX = Math.floor(bounds.minX / step) * step;
+  const startY = Math.floor(bounds.minY / step) * step;
+
+  for (let x = startX; x <= bounds.maxX + step; x += step) {
+    outCtx.beginPath();
+    outCtx.moveTo(x, bounds.minY - step);
+    outCtx.lineTo(x, bounds.maxY + step);
+    outCtx.stroke();
+  }
+
+  for (let y = startY; y <= bounds.maxY + step; y += step) {
+    outCtx.beginPath();
+    outCtx.moveTo(bounds.minX - step, y);
+    outCtx.lineTo(bounds.maxX + step, y);
+    outCtx.stroke();
+  }
+
+  outCtx.restore();
+}
+
+function getBounds(points) {
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys)
+  };
 }
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
+function updateStatus(message) {
+  statusImage.textContent = img
+    ? `Obraz: ${img.naturalWidth} × ${img.naturalHeight} px`
+    : "Brak obrazu";
 
-[
-  gridSpacingInput,
-  gridColorInput,
-  gridOpacityInput,
-  gridWidthInput,
-  showOutlinesInput,
-  gridPerRoomOriginInput
-].forEach(el => el.addEventListener("input", draw));
+  statusScale.textContent = pxPerMeter
+    ? `Skala: 1 m = ${pxPerMeter.toFixed(1)} px`
+    : `Skala: ${scalePoints.length}/2 punkty`;
 
-fitViewBtn.addEventListener("click", fitImageToView);
+  statusRooms.textContent = `Pokoje: ${rooms.length}`;
 
-exportPngBtn.addEventListener("click", () => {
-  if (!image) {
-    alert("Najpierw wgraj obraz.");
-    return;
-  }
-
-  if (!pxPerMeter) {
-    const proceed = confirm("Skala nie jest ustawiona. Siatka nie zostanie narysowana. Eksportować mimo to?");
-    if (!proceed) return;
-  }
-
-  const out = document.createElement("canvas");
-  out.width = image.naturalWidth;
-  out.height = image.naturalHeight;
-  const outCtx = out.getContext("2d");
-
-  outCtx.drawImage(image, 0, 0);
-  drawRoomsAndGridsForExport(outCtx);
-
-  const link = document.createElement("a");
-  link.download = makeSafeFileName(imageName || "rzut") + "_siatka_1x1m.png";
-  link.href = out.toDataURL("image/png");
-  link.click();
-});
-
-function drawRoomsAndGridsForExport(outCtx) {
-  const settings = getGridSettings();
-
-  for (const room of rooms) {
-    if (room.grid !== false && pxPerMeter) {
-      drawGridInsidePolygon(outCtx, room.points, settings, pxPerMeter, false);
-    }
-
-    if (settings.showOutlines) {
-      drawPolygon(outCtx, room.points, "rgba(70,70,70,0.75)", Math.max(1, settings.width), true);
-    }
+  if (message) {
+    statusMode.textContent = `Teraz: ${message}`;
+  } else if (!img) {
+    statusMode.textContent = "Teraz: wgraj obraz";
+  } else if (pxPerMeter === null) {
+    statusMode.textContent = "Teraz: ustaw skalę";
+  } else {
+    statusMode.textContent = "Teraz: obrysuj pokoje";
   }
 }
 
-function makeSafeFileName(name) {
-  return name.replace(/\.[^/.]+$/, "").replace(/[^\p{L}\p{N}_-]+/gu, "_");
+function safeName(name) {
+  return String(name)
+    .replace(/\.[^/.]+$/, "")
+    .replace(/[^\p{L}\p{N}_-]+/gu, "_");
 }
 
-saveProjectBtn.addEventListener("click", () => {
-  const project = {
-    version: 1,
-    imageName,
-    imageDataUrl,
-    pxPerMeter,
-    calibrationPoints,
-    currentPoints,
-    rooms,
-    settings: {
-      gridSpacing: gridSpacingInput.value,
-      gridColor: gridColorInput.value,
-      gridOpacity: gridOpacityInput.value,
-      gridWidth: gridWidthInput.value,
-      showOutlines: showOutlinesInput.checked,
-      gridPerRoomOrigin: gridPerRoomOriginInput.checked
-    }
-  };
-
-  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
-  const link = document.createElement("a");
-  link.download = "projekt_siatka_1x1m.json";
-  link.href = URL.createObjectURL(blob);
-  link.click();
-  URL.revokeObjectURL(link.href);
-});
-
-projectInput.addEventListener("change", async (event) => {
-  const file = event.target.files?.[0];
-  if (!file) return;
-
-  const text = await file.text();
-  const project = JSON.parse(text);
-
-  if (!project.imageDataUrl) {
-    alert("Ten projekt nie zawiera obrazu.");
-    return;
-  }
-
-  const img = new Image();
-  img.onload = () => {
-    image = img;
-    imageDataUrl = project.imageDataUrl;
-    imageName = project.imageName || "rzut";
-    pxPerMeter = project.pxPerMeter || null;
-    calibrationPoints = project.calibrationPoints || [];
-    currentPoints = project.currentPoints || [];
-    rooms = project.rooms || [];
-
-    if (project.settings) {
-      gridSpacingInput.value = project.settings.gridSpacing ?? "1.00";
-      gridColorInput.value = project.settings.gridColor ?? "#777777";
-      gridOpacityInput.value = project.settings.gridOpacity ?? "0.45";
-      gridWidthInput.value = project.settings.gridWidth ?? "1";
-      showOutlinesInput.checked = project.settings.showOutlines ?? true;
-      gridPerRoomOriginInput.checked = project.settings.gridPerRoomOrigin ?? false;
-    }
-
-    emptyState.style.display = "none";
-    updateScaleInfo();
-    updateRoomsList();
-    fitImageToView();
-  };
-  img.src = project.imageDataUrl;
-});
-
-updateRoomsList();
-setMode("pan");
+updateStatus();

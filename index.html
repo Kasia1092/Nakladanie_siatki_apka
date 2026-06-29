@@ -3,111 +3,77 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Siatka 1×1 m na rzucie</title>
+  <title>Siatka 1×1 m</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>Siatka 1×1 m na rzucie</h1>
-      <p>Wgraj rzut, skalibruj wymiar, obrysuj pomieszczenia i wyeksportuj obraz z szarą siatką.</p>
-    </div>
-    <div class="badge">statyczne HTML + CSS + JS</div>
-  </header>
+  <main class="app">
+    <header>
+      <h1>Siatka 1×1 m</h1>
+      <p>Wgraj rzut, ustaw skalę, obrysuj pokoje/korytarze i pobierz obraz z siatką.</p>
+    </header>
 
-  <main class="layout">
-    <aside class="panel">
-      <section class="card">
-        <h2>1. Podkład</h2>
-        <label class="file-button">
-          Wgraj JPG/PNG
-          <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp" />
+    <section class="steps">
+      <div class="step">
+        <h2>1. Wgraj obraz</h2>
+        <label class="button">
+          Wybierz JPG/PNG
+          <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" />
         </label>
-        <p class="hint">Najlepiej użyj oryginalnego eksportu z PDF/DWG, nie zrzutu ekranu.</p>
-      </section>
-
-      <section class="card">
-        <h2>2. Tryb pracy</h2>
-        <div class="mode-grid">
-          <button class="mode active" data-mode="pan">Przesuwaj</button>
-          <button class="mode" data-mode="calibrate">Kalibruj</button>
-          <button class="mode" data-mode="room">Rysuj pomieszczenie</button>
-        </div>
-        <p id="modeHelp" class="hint">Tryb „Przesuwaj”: przeciągaj rzut, kółkiem myszy przybliżaj.</p>
-      </section>
-
-      <section class="card">
-        <h2>3. Kalibracja skali</h2>
-        <p class="small">Kliknij dwa punkty znanego wymiaru, np. odcinek 2,00 m albo szerokość drzwi 0,90 m.</p>
-        <div class="row">
-          <label for="realDistance">Wymiar rzeczywisty [m]</label>
-          <input id="realDistance" type="number" value="1.00" min="0.01" step="0.01" />
-        </div>
-        <button id="applyCalibration">Zastosuj kalibrację</button>
-        <button id="clearCalibration" class="secondary">Wyczyść punkty kalibracji</button>
-        <p id="scaleInfo" class="status">Skala: nieustalona</p>
-      </section>
-
-      <section class="card">
-        <h2>4. Pomieszczenia</h2>
-        <div class="row">
-          <label for="roomName">Nazwa</label>
-          <input id="roomName" type="text" value="Pomieszczenie 1" />
-        </div>
-        <button id="closeRoom">Zamknij obrys</button>
-        <button id="undoPoint" class="secondary">Cofnij punkt</button>
-        <button id="clearCurrent" class="secondary">Wyczyść bieżący obrys</button>
-        <p class="hint">Klikaj narożniki po wewnętrznej stronie ścian. Obrys zamknij przyciskiem.</p>
-        <div id="roomsList" class="rooms-list"></div>
-      </section>
-
-      <section class="card">
-        <h2>5. Siatka</h2>
-        <div class="row">
-          <label for="gridSpacing">Rozstaw [m]</label>
-          <input id="gridSpacing" type="number" value="1.00" min="0.05" step="0.05" />
-        </div>
-        <div class="row">
-          <label for="gridColor">Kolor</label>
-          <input id="gridColor" type="color" value="#777777" />
-        </div>
-        <div class="row">
-          <label for="gridOpacity">Przezroczystość</label>
-          <input id="gridOpacity" type="range" min="0.05" max="1" value="0.45" step="0.05" />
-        </div>
-        <div class="row">
-          <label for="gridWidth">Grubość [px]</label>
-          <input id="gridWidth" type="number" value="1" min="1" max="8" step="1" />
-        </div>
-        <label class="check">
-          <input id="showOutlines" type="checkbox" checked />
-          pokaż obrysy pomieszczeń
-        </label>
-        <label class="check">
-          <input id="gridPerRoomOrigin" type="checkbox" />
-          zaczynaj siatkę od narożnika każdego pomieszczenia
-        </label>
-      </section>
-
-      <section class="card">
-        <h2>6. Widok i eksport</h2>
-        <button id="fitView">Dopasuj widok</button>
-        <button id="exportPng">Eksportuj PNG</button>
-        <button id="saveProject" class="secondary">Zapisz projekt JSON</button>
-        <label class="file-button secondary">
-          Wczytaj projekt JSON
-          <input id="projectInput" type="file" accept="application/json" />
-        </label>
-      </section>
-    </aside>
-
-    <section class="workspace">
-      <canvas id="canvas"></canvas>
-      <div id="emptyState" class="empty">
-        <strong>Wgraj obraz rzutu</strong>
-        <span>Potem przejdź do trybu „Kalibruj” i kliknij dwa punkty znanego wymiaru.</span>
       </div>
-      <div class="coords" id="coords">x: –, y: –</div>
+
+      <div class="step">
+        <h2>2. Ustaw skalę</h2>
+        <p>Kliknij na obrazie dwa końce znanego odcinka.</p>
+
+        <div class="line">
+          <input id="lengthInput" type="number" min="1" step="1" value="100" />
+          <select id="unitInput">
+            <option value="cm" selected>cm</option>
+            <option value="m">m</option>
+          </select>
+        </div>
+
+        <button id="setScaleBtn">Zapisz skalę</button>
+        <button id="clearScaleBtn" class="light">Wyczyść skalę</button>
+      </div>
+
+      <div class="step">
+        <h2>3. Obrysuj pokoje</h2>
+        <p>Klikaj narożniki pokoju/korytarza. Na końcu zamknij pokój.</p>
+
+        <button id="closeRoomBtn">Zamknij pokój</button>
+        <button id="undoPointBtn" class="light">Cofnij kliknięcie</button>
+        <button id="deleteRoomBtn" class="light">Usuń ostatni pokój</button>
+        <button id="clearAllBtn" class="light dangerText">Wyczyść wszystko</button>
+      </div>
+
+      <div class="step">
+        <h2>4. Podgląd i zapis</h2>
+        <button id="generateBtn">Generuj podgląd</button>
+        <button id="downloadBtn" class="download" disabled>Pobierz PNG</button>
+      </div>
+    </section>
+
+    <section class="info">
+      <span id="statusImage">Brak obrazu</span>
+      <span id="statusScale">Skala: nieustawiona</span>
+      <span id="statusRooms">Pokoje: 0</span>
+      <span id="statusMode">Teraz: wgraj obraz</span>
+    </section>
+
+    <section class="work">
+      <canvas id="editCanvas"></canvas>
+      <div id="placeholder">
+        <strong>Tu pojawi się obraz</strong>
+        <span>Po wgraniu kliknij dwa punkty do skali, potem obrysuj pokoje.</span>
+      </div>
+    </section>
+
+    <section id="previewSection" class="preview hidden">
+      <h2>Podgląd gotowego obrazu</h2>
+      <p>Jeśli wygląda dobrze, kliknij „Pobierz PNG”.</p>
+      <img id="previewImage" alt="Podgląd obrazu z siatką" />
     </section>
   </main>
 
