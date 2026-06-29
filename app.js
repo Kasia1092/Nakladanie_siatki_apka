@@ -5,6 +5,14 @@ const fileInput = document.getElementById("fileInput");
 const lengthInput = document.getElementById("lengthInput");
 const unitInput = document.getElementById("unitInput");
 
+const gridWidthSizeInput = document.getElementById("gridWidthSizeInput");
+const gridWidthUnitInput = document.getElementById("gridWidthUnitInput");
+const gridHeightSizeInput = document.getElementById("gridHeightSizeInput");
+const gridHeightUnitInput = document.getElementById("gridHeightUnitInput");
+const gridColorInput = document.getElementById("gridColorInput");
+const gridLineWidthInput = document.getElementById("gridLineWidthInput");
+const gridOpacityInput = document.getElementById("gridOpacityInput");
+
 const setScaleBtn = document.getElementById("setScaleBtn");
 const clearScaleBtn = document.getElementById("clearScaleBtn");
 const closeRoomBtn = document.getElementById("closeRoomBtn");
@@ -16,6 +24,7 @@ const downloadBtn = document.getElementById("downloadBtn");
 
 const statusImage = document.getElementById("statusImage");
 const statusScale = document.getElementById("statusScale");
+const statusGrid = document.getElementById("statusGrid");
 const statusRooms = document.getElementById("statusRooms");
 const statusMode = document.getElementById("statusMode");
 
@@ -35,7 +44,6 @@ let rooms = [];
 
 let resultDataUrl = null;
 
-const GRID_COLOR = "rgba(115, 115, 115, 0.55)";
 const POINT_COLOR = "rgba(180, 60, 30, 0.95)";
 const ROOM_COLOR = "rgba(80, 80, 80, 0.9)";
 const SCALE_COLOR = "rgba(180, 40, 40, 0.95)";
@@ -72,10 +80,11 @@ fileInput.addEventListener("change", async () => {
     resultDataUrl = null;
 
     placeholder.classList.add("hidden");
+    placeholder.style.display = "none";
     previewSection.classList.add("hidden");
     downloadBtn.disabled = true;
 
-    updateStatus("Kliknij dwa punkty do skali.");
+    updateStatus("Kliknij dwa punkty do ustawienia skali.");
     draw();
   };
 
@@ -116,7 +125,7 @@ editCanvas.addEventListener("click", (event) => {
   }
 
   currentRoom.push(point);
-  updateStatus("Klikaj kolejne narożniki albo zamknij pokój.");
+  updateStatus("Klikaj kolejne narożniki pomieszczenia.");
   draw();
 });
 
@@ -133,7 +142,7 @@ setScaleBtn.addEventListener("click", () => {
 
   const value = Number(lengthInput.value);
   if (!Number.isFinite(value) || value <= 0) {
-    alert("Wpisz poprawną długość.");
+    alert("Wpisz poprawną długość odcinka.");
     return;
   }
 
@@ -141,7 +150,7 @@ setScaleBtn.addEventListener("click", () => {
   const pixelDistance = distance(scalePoints[0], scalePoints[1]);
 
   pxPerMeter = pixelDistance / meters;
-  updateStatus("Skala zapisana. Teraz obrysuj pokoje.");
+  updateStatus("Skala zapisana. Teraz zaznaczaj pomieszczenia.");
   draw();
 });
 
@@ -153,7 +162,7 @@ clearScaleBtn.addEventListener("click", () => {
   resultDataUrl = null;
   downloadBtn.disabled = true;
   previewSection.classList.add("hidden");
-  updateStatus(img ? "Kliknij dwa punkty do skali." : "Wgraj obraz.");
+  updateStatus(img ? "Kliknij dwa punkty do ustawienia skali." : "Wgraj zdjęcie.");
   draw();
 });
 
@@ -169,14 +178,14 @@ closeRoomBtn.addEventListener("click", () => {
   }
 
   if (currentRoom.length < 3) {
-    alert("Pokój musi mieć minimum 3 narożniki.");
+    alert("Pomieszczenie musi mieć minimum 3 narożniki.");
     return;
   }
 
   rooms.push(currentRoom.map(p => ({ x: p.x, y: p.y })));
   currentRoom = [];
 
-  updateStatus("Pokój zapisany. Możesz obrysować kolejny.");
+  updateStatus("Pomieszczenie zapisane. Możesz zaznaczyć kolejne.");
   draw();
 });
 
@@ -194,11 +203,11 @@ undoPointBtn.addEventListener("click", () => {
 deleteRoomBtn.addEventListener("click", () => {
   rooms.pop();
   draw();
-  updateStatus("Usunięto ostatni pokój.");
+  updateStatus("Usunięto ostatnie pomieszczenie.");
 });
 
 clearAllBtn.addEventListener("click", () => {
-  if (!confirm("Wyczyścić skalę, pokoje i podgląd?")) return;
+  if (!confirm("Wyczyścić skalę, pomieszczenia i podgląd?")) return;
 
   scalePoints = [];
   pxPerMeter = null;
@@ -208,7 +217,7 @@ clearAllBtn.addEventListener("click", () => {
   downloadBtn.disabled = true;
   previewSection.classList.add("hidden");
 
-  updateStatus(img ? "Kliknij dwa punkty do skali." : "Wgraj obraz.");
+  updateStatus(img ? "Kliknij dwa punkty do ustawienia skali." : "Wgraj zdjęcie.");
   draw();
 });
 
@@ -224,11 +233,17 @@ generateBtn.addEventListener("click", () => {
   }
 
   if (rooms.length === 0) {
-    alert("Najpierw obrysuj przynajmniej jeden pokój/korytarz.");
+    alert("Najpierw zaznacz przynajmniej jedno pomieszczenie.");
     return;
   }
 
-  resultDataUrl = makeResultImage();
+  const grid = getGridSettings();
+  if (!grid) {
+    alert("Wpisz poprawny wymiar siatki.");
+    return;
+  }
+
+  resultDataUrl = makeResultImage(grid);
   previewImage.src = resultDataUrl;
   previewSection.classList.remove("hidden");
   downloadBtn.disabled = false;
@@ -240,8 +255,21 @@ downloadBtn.addEventListener("click", () => {
 
   const link = document.createElement("a");
   link.href = resultDataUrl;
-  link.download = `${safeName(fileName)}_siatka_1x1m.png`;
+  link.download = `${safeName(fileName)}_siatka.png`;
   link.click();
+});
+
+[
+  gridWidthSizeInput,
+  gridWidthUnitInput,
+  gridHeightSizeInput,
+  gridHeightUnitInput,
+  gridColorInput,
+  gridLineWidthInput,
+  gridOpacityInput
+].forEach(element => {
+  element.addEventListener("input", updateStatus);
+  element.addEventListener("change", updateStatus);
 });
 
 function draw() {
@@ -251,7 +279,6 @@ function draw() {
   if (!img) return;
 
   drawBox = getDrawBox(rect.width, rect.height, img.naturalWidth, img.naturalHeight);
-
   ctx.drawImage(img, drawBox.x, drawBox.y, drawBox.w, drawBox.h);
 
   drawSavedRooms();
@@ -382,7 +409,39 @@ function drawDot(point, radius) {
   ctx.fill();
 }
 
-function makeResultImage() {
+function getGridSettings() {
+  const widthValue = Number(gridWidthSizeInput.value);
+  const heightValue = Number(gridHeightSizeInput.value);
+  const lineWidth = Number(gridLineWidthInput.value);
+  const opacity = Number(gridOpacityInput.value);
+
+  if (!Number.isFinite(widthValue) || widthValue <= 0) return null;
+  if (!Number.isFinite(heightValue) || heightValue <= 0) return null;
+
+  return {
+    widthMeters: gridWidthUnitInput.value === "cm" ? widthValue / 100 : widthValue,
+    heightMeters: gridHeightUnitInput.value === "cm" ? heightValue / 100 : heightValue,
+    color: gridColorInput.value || "#777777",
+    lineWidth: Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth : 2,
+    opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0.1, opacity)) : 0.55
+  };
+}
+
+function hexToRgba(hex, alpha) {
+  let value = String(hex).replace("#", "");
+  if (value.length === 3) {
+    value = value.split("").map(char => char + char).join("");
+  }
+
+  const number = parseInt(value, 16);
+  const r = (number >> 16) & 255;
+  const g = (number >> 8) & 255;
+  const b = number & 255;
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function makeResultImage(grid) {
   const out = document.createElement("canvas");
   out.width = img.naturalWidth;
   out.height = img.naturalHeight;
@@ -391,14 +450,20 @@ function makeResultImage() {
   outCtx.drawImage(img, 0, 0);
 
   for (const room of rooms) {
-    drawGridInRoom(outCtx, room);
+    drawGridInRoom(outCtx, room, grid);
   }
 
   return out.toDataURL("image/png");
 }
 
-function drawGridInRoom(outCtx, room) {
-  const step = pxPerMeter; // 1 m
+function drawGridInRoom(outCtx, room, grid) {
+  const stepX = pxPerMeter * grid.widthMeters;
+  const stepY = pxPerMeter * grid.heightMeters;
+
+  if (!Number.isFinite(stepX) || !Number.isFinite(stepY) || stepX <= 0 || stepY <= 0) {
+    return;
+  }
+
   const bounds = getBounds(room);
 
   outCtx.save();
@@ -411,23 +476,23 @@ function drawGridInRoom(outCtx, room) {
   outCtx.closePath();
   outCtx.clip();
 
-  outCtx.strokeStyle = GRID_COLOR;
-  outCtx.lineWidth = Math.max(1, img.naturalWidth / 1800);
+  outCtx.strokeStyle = hexToRgba(grid.color, grid.opacity);
+  outCtx.lineWidth = grid.lineWidth;
 
-  const startX = Math.floor(bounds.minX / step) * step;
-  const startY = Math.floor(bounds.minY / step) * step;
+  const startX = Math.floor(bounds.minX / stepX) * stepX;
+  const startY = Math.floor(bounds.minY / stepY) * stepY;
 
-  for (let x = startX; x <= bounds.maxX + step; x += step) {
+  for (let x = startX; x <= bounds.maxX + stepX; x += stepX) {
     outCtx.beginPath();
-    outCtx.moveTo(x, bounds.minY - step);
-    outCtx.lineTo(x, bounds.maxY + step);
+    outCtx.moveTo(x, bounds.minY - stepY);
+    outCtx.lineTo(x, bounds.maxY + stepY);
     outCtx.stroke();
   }
 
-  for (let y = startY; y <= bounds.maxY + step; y += step) {
+  for (let y = startY; y <= bounds.maxY + stepY; y += stepY) {
     outCtx.beginPath();
-    outCtx.moveTo(bounds.minX - step, y);
-    outCtx.lineTo(bounds.maxX + step, y);
+    outCtx.moveTo(bounds.minX - stepX, y);
+    outCtx.lineTo(bounds.maxX + stepX, y);
     outCtx.stroke();
   }
 
@@ -459,16 +524,19 @@ function updateStatus(message) {
     ? `Skala: 1 m = ${pxPerMeter.toFixed(1)} px`
     : `Skala: ${scalePoints.length}/2 punkty`;
 
-  statusRooms.textContent = `Pokoje: ${rooms.length}`;
+  statusGrid.textContent =
+    `Siatka: ${gridWidthSizeInput.value || "?"} ${gridWidthUnitInput.value} × ${gridHeightSizeInput.value || "?"} ${gridHeightUnitInput.value}`;
+
+  statusRooms.textContent = `Pomieszczenia: ${rooms.length}`;
 
   if (message) {
     statusMode.textContent = `Teraz: ${message}`;
   } else if (!img) {
-    statusMode.textContent = "Teraz: wgraj obraz";
+    statusMode.textContent = "Teraz: wgraj zdjęcie";
   } else if (pxPerMeter === null) {
     statusMode.textContent = "Teraz: ustaw skalę";
   } else {
-    statusMode.textContent = "Teraz: obrysuj pokoje";
+    statusMode.textContent = "Teraz: zaznacz pomieszczenia";
   }
 }
 

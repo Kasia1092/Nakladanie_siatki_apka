@@ -3,54 +3,91 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Siatka 1×1 m</title>
+  <title>Apka do nakładania siatki na JPG/PNG</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="app">
     <header>
-      <h1>Siatka 1×1 m</h1>
-      <p>Wgraj rzut, ustaw skalę, obrysuj pokoje/korytarze i pobierz obraz z siatką.</p>
+      <h1>Apka do nakładania siatki na JPG/PNG</h1>
+      <p>Wgraj zdjęcie, ustaw skalę, zaznacz pomieszczenia i pobierz gotowy obraz z siatką.</p>
     </header>
 
     <section class="steps">
       <div class="step">
-        <h2>1. Wgraj obraz</h2>
+        <h2>1. Wgraj zdjęcie</h2>
         <label class="button">
           Wybierz JPG/PNG
           <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" />
         </label>
       </div>
 
-      <div class="step">
-        <h2>2. Ustaw skalę</h2>
-        <p>Kliknij na obrazie dwa końce znanego odcinka.</p>
+      <div class="step important">
+        <h2>2. Ustaw skalę — ważne</h2>
+        <p>Na obrazie kliknij dwa końce odcinka, którego długość znasz. To jest najważniejszy krok, bo od niego zależy poprawna siatka.</p>
+        <button id="clearScaleBtn" class="light">Wyczyść punkty skali</button>
+      </div>
 
+      <div class="step">
+        <h2>3. Wpisz długość zaznaczonego odcinka</h2>
+        <p>Podaj długość odcinka, który został zaznaczony w kroku 2.</p>
         <div class="line">
-          <input id="lengthInput" type="number" min="1" step="1" value="100" />
+          <input id="lengthInput" type="number" min="0.01" step="0.01" value="100" />
           <select id="unitInput">
             <option value="cm" selected>cm</option>
             <option value="m">m</option>
           </select>
         </div>
-
         <button id="setScaleBtn">Zapisz skalę</button>
-        <button id="clearScaleBtn" class="light">Wyczyść skalę</button>
       </div>
 
       <div class="step">
-        <h2>3. Obrysuj pokoje</h2>
-        <p>Klikaj narożniki pokoju/korytarza. Na końcu zamknij pokój.</p>
-
-        <button id="closeRoomBtn">Zamknij pokój</button>
-        <button id="undoPointBtn" class="light">Cofnij kliknięcie</button>
-        <button id="deleteRoomBtn" class="light">Usuń ostatni pokój</button>
+        <h2>4. Zaznacz pomieszczenia</h2>
+        <p>Klikaj po kolei wszystkie narożniki pomieszczenia lub korytarza. Gdy zaznaczysz wszystkie narożniki, kliknij „Zamknij pomieszczenie”.</p>
+        <button id="closeRoomBtn">Zamknij pomieszczenie</button>
+        <button id="undoPointBtn" class="light">Cofnij ostatnie kliknięcie</button>
+        <button id="deleteRoomBtn" class="light">Usuń ostatnie pomieszczenie</button>
         <button id="clearAllBtn" class="light dangerText">Wyczyść wszystko</button>
       </div>
 
+      <div class="step wide">
+        <h2>5. Ustaw siatkę</h2>
+        <p>Tu wybierasz wielkość kratki, kolor, grubość i widoczność linii.</p>
+
+        <label class="miniLabel">Szerokość kratki</label>
+        <div class="line">
+          <input id="gridWidthSizeInput" type="number" min="0.01" step="0.01" value="100" />
+          <select id="gridWidthUnitInput">
+            <option value="cm" selected>cm</option>
+            <option value="m">m</option>
+          </select>
+        </div>
+
+        <label class="miniLabel">Wysokość kratki</label>
+        <div class="line">
+          <input id="gridHeightSizeInput" type="number" min="0.01" step="0.01" value="100" />
+          <select id="gridHeightUnitInput">
+            <option value="cm" selected>cm</option>
+            <option value="m">m</option>
+          </select>
+        </div>
+
+        <label class="miniLabel">Kolor siatki</label>
+        <input id="gridColorInput" type="color" value="#777777" />
+
+        <label class="miniLabel">Grubość linii</label>
+        <div class="line">
+          <input id="gridLineWidthInput" type="number" min="1" max="10" step="1" value="2" />
+          <span class="unitBox">px</span>
+        </div>
+
+        <label class="miniLabel">Widoczność linii</label>
+        <input id="gridOpacityInput" type="range" min="0.1" max="1" step="0.05" value="0.55" />
+      </div>
+
       <div class="step">
-        <h2>4. Podgląd i zapis</h2>
-        <button id="generateBtn">Generuj podgląd</button>
+        <h2>6. Podgląd i pobranie</h2>
+        <button id="generateBtn">Pokaż podgląd</button>
         <button id="downloadBtn" class="download" disabled>Pobierz PNG</button>
       </div>
     </section>
@@ -58,21 +95,22 @@
     <section class="info">
       <span id="statusImage">Brak obrazu</span>
       <span id="statusScale">Skala: nieustawiona</span>
-      <span id="statusRooms">Pokoje: 0</span>
-      <span id="statusMode">Teraz: wgraj obraz</span>
+      <span id="statusGrid">Siatka: 100 × 100 cm</span>
+      <span id="statusRooms">Pomieszczenia: 0</span>
+      <span id="statusMode">Teraz: wgraj zdjęcie</span>
     </section>
 
     <section class="work">
       <canvas id="editCanvas"></canvas>
       <div id="placeholder">
         <strong>Tu pojawi się obraz</strong>
-        <span>Po wgraniu kliknij dwa punkty do skali, potem obrysuj pokoje.</span>
+        <span>Po wgraniu kliknij dwa punkty do skali, potem zaznacz narożniki pomieszczeń.</span>
       </div>
     </section>
 
     <section id="previewSection" class="preview hidden">
       <h2>Podgląd gotowego obrazu</h2>
-      <p>Jeśli wygląda dobrze, kliknij „Pobierz PNG”.</p>
+      <p>Jeśli wszystko się zgadza, kliknij „Pobierz PNG”.</p>
       <img id="previewImage" alt="Podgląd obrazu z siatką" />
     </section>
   </main>

@@ -8,6 +8,9 @@
   --light: #eeeeee;
   --danger: #a33;
   --ok: #2f6f3e;
+  --important-bg: #eef8ef;
+  --important-line: #b7ddb8;
+  --important-text: #2f6f3e;
 }
 
 * {
@@ -22,7 +25,7 @@ body {
 }
 
 .app {
-  max-width: 1280px;
+  max-width: 1380px;
   margin: 0 auto;
   padding: 18px;
 }
@@ -41,12 +44,12 @@ header p,
 .preview p {
   margin: 0;
   color: var(--muted);
-  line-height: 1.35;
+  line-height: 1.38;
 }
 
 .steps {
   display: grid;
-  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 12px;
   margin-bottom: 12px;
 }
@@ -56,6 +59,19 @@ header p,
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
+}
+
+.step.wide {
+  grid-column: span 2;
+}
+
+.step.important {
+  background: var(--important-bg);
+  border-color: var(--important-line);
+}
+
+.step.important h2 {
+  color: var(--important-text);
 }
 
 .step h2 {
@@ -105,17 +121,46 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 82px;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 6px;
+  margin-bottom: 8px;
 }
 
 input,
-select {
+select,
+.unitBox {
   width: 100%;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 15px;
   background: white;
+}
+
+input[type="color"] {
+  height: 42px;
+  padding: 4px;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+input[type="range"] {
+  padding: 0;
+  margin-top: 10px;
+}
+
+.unitBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.miniLabel {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .info {
@@ -164,6 +209,10 @@ select {
   pointer-events: none;
 }
 
+#placeholder.hidden {
+  display: none;
+}
+
 #placeholder strong {
   color: var(--text);
   font-size: 22px;
@@ -195,9 +244,13 @@ select {
   display: none;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 980px) {
   .steps {
     grid-template-columns: 1fr;
+  }
+
+  .step.wide {
+    grid-column: auto;
   }
 
   .work {
