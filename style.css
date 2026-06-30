@@ -13,6 +13,8 @@
   --important-text: #2f6f3e;
   --note-bg: #fff7e8;
   --note-line: #ecd092;
+  --blue-bg: #eef4ff;
+  --blue-line: #b9cdf9;
 }
 
 * {
@@ -76,10 +78,6 @@ header p,
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px;
-}
-
-.step.wide {
-  grid-column: span 2;
 }
 
 .step.important {
@@ -217,9 +215,9 @@ input[type="range"] {
 }
 
 .roomCard {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fafafa;
+  border: 2px solid var(--blue-line);
+  border-radius: 14px;
+  background: var(--blue-bg);
   padding: 12px;
 }
 
@@ -231,7 +229,7 @@ input[type="range"] {
 
 .roomCard h3 {
   margin: 0 0 6px;
-  font-size: 17px;
+  font-size: 18px;
 }
 
 .roomCard .small {
@@ -346,10 +344,6 @@ input[type="range"] {
   .steps,
   .roomsPanel {
     grid-template-columns: 1fr;
-  }
-
-  .step.wide {
-    grid-column: auto;
   }
 
   .work {

@@ -5,14 +5,6 @@ const fileInput = document.getElementById("fileInput");
 const lengthInput = document.getElementById("lengthInput");
 const unitInput = document.getElementById("unitInput");
 
-const gridWidthSizeInput = document.getElementById("gridWidthSizeInput");
-const gridWidthUnitInput = document.getElementById("gridWidthUnitInput");
-const gridHeightSizeInput = document.getElementById("gridHeightSizeInput");
-const gridHeightUnitInput = document.getElementById("gridHeightUnitInput");
-const gridColorInput = document.getElementById("gridColorInput");
-const gridLineWidthInput = document.getElementById("gridLineWidthInput");
-const gridOpacityInput = document.getElementById("gridOpacityInput");
-
 const setScaleBtn = document.getElementById("setScaleBtn");
 const clearScaleBtn = document.getElementById("clearScaleBtn");
 const closeRoomBtn = document.getElementById("closeRoomBtn");
@@ -24,7 +16,6 @@ const downloadBtn = document.getElementById("downloadBtn");
 
 const statusImage = document.getElementById("statusImage");
 const statusScale = document.getElementById("statusScale");
-const statusGrid = document.getElementById("statusGrid");
 const statusRooms = document.getElementById("statusRooms");
 const statusMode = document.getElementById("statusMode");
 
@@ -32,7 +23,6 @@ const placeholder = document.getElementById("placeholder");
 const previewSection = document.getElementById("previewSection");
 const previewImage = document.getElementById("previewImage");
 
-const roomSettings = document.getElementById("roomSettings");
 const roomsPanel = document.getElementById("roomsPanel");
 
 let img = null;
@@ -205,7 +195,7 @@ closeRoomBtn.addEventListener("click", () => {
     return;
   }
 
-  rooms.push(createRoom(currentRoom));
+  rooms.push(createRoom(currentRoom, rooms.length));
   currentRoom = [];
   manualCenterRoomIndex = null;
 
@@ -268,12 +258,6 @@ generateBtn.addEventListener("click", () => {
     return;
   }
 
-  const defaultGrid = getDefaultGridSettings();
-  if (!defaultGrid) {
-    alert("Wpisz poprawny domyślny wymiar siatki.");
-    return;
-  }
-
   for (const room of rooms) {
     if (!getRoomGridSettings(room)) {
       alert("Jedno z pomieszczeń ma niepoprawne ustawienia siatki.");
@@ -297,52 +281,23 @@ downloadBtn.addEventListener("click", () => {
   link.click();
 });
 
-[
-  gridWidthSizeInput,
-  gridWidthUnitInput,
-  gridHeightSizeInput,
-  gridHeightUnitInput,
-  gridColorInput,
-  gridLineWidthInput,
-  gridOpacityInput
-].forEach(element => {
-  element.addEventListener("input", () => {
-    clearResult();
-    updateStatus();
-  });
-  element.addEventListener("change", () => {
-    clearResult();
-    updateStatus();
-  });
-});
-
-function createRoom(points) {
-  const defaultGrid = getDefaultGridSettings() || {
-    widthValue: 100,
-    widthUnit: "cm",
-    heightValue: 100,
-    heightUnit: "cm",
-    color: "#777777",
-    lineWidth: 2,
-    opacity: 0.55
-  };
-
+function createRoom(points, index) {
   return {
     points: points.map(p => ({ x: p.x, y: p.y })),
     gridOriginMode: "center",
     manualCenter: null,
     grid: {
-      widthValue: defaultGrid.widthValue,
-      widthUnit: defaultGrid.widthUnit,
-      heightValue: defaultGrid.heightValue,
-      heightUnit: defaultGrid.heightUnit,
-      color: defaultGrid.color,
-      lineWidth: defaultGrid.lineWidth,
-      opacity: defaultGrid.opacity
+      widthValue: 100,
+      widthUnit: "cm",
+      heightValue: 100,
+      heightUnit: "cm",
+      color: "#777777",
+      lineWidth: 2,
+      opacity: 0.55
     },
     labels: {
       enabled: false,
-      prefix: "P",
+      prefix: `P${index + 1}-`,
       start: 1,
       end: "",
       color: "#111111",
@@ -555,7 +510,7 @@ function updateRoomsPanel() {
     roomsPanel.innerHTML = `
       <div class="roomCard emptyRoomCard">
         <h3>Brak zamkniętych pomieszczeń</h3>
-        <p class="small">Najpierw zaznacz narożniki pomieszczenia na obrazie i kliknij „Zamknij pomieszczenie”. Dopiero wtedy pojawią się tu opcje centrowania, siatki i numerowania kratek dla tego pomieszczenia.</p>
+        <p class="small">Najpierw zaznacz narożniki pomieszczenia na obrazie i kliknij „Zamknij pomieszczenie”. Dopiero wtedy pojawi się osobna karta z ustawieniami siatki i numeracji dla tego pomieszczenia.</p>
       </div>
     `;
     return;
@@ -572,7 +527,7 @@ function updateRoomsPanel() {
       <p class="small">${countText}</p>
 
       <div class="subBox">
-        <h4>Siatka w tym pomieszczeniu</h4>
+        <h4>Siatka tylko dla pomieszczenia ${index + 1}</h4>
         <div class="roomGrid">
           <label class="miniLabel">Szerokość kratki</label>
           <label class="miniLabel">Jednostka</label>
@@ -591,7 +546,7 @@ function updateRoomsPanel() {
           </select>
 
           <label class="miniLabel">Kolor siatki</label>
-          <label class="miniLabel">Grubość</label>
+          <label class="miniLabel">Grubość linii</label>
           <input type="color" data-group="grid" data-field="color" value="${room.grid.color}">
           <input type="number" data-group="grid" data-field="lineWidth" min="1" max="10" step="1" value="${room.grid.lineWidth}">
 
@@ -601,16 +556,16 @@ function updateRoomsPanel() {
       </div>
 
       <div class="subBox">
-        <h4>Środek siatki</h4>
+        <h4>Środek kratki dla pomieszczenia ${index + 1}</h4>
         <div class="roomGrid">
-          <button class="light full" data-action="autoCenter">Wyśrodkuj siatkę automatycznie</button>
-          <button class="light full" data-action="manualCenter">Ustaw środek kratki ręcznie</button>
+          <button class="light full" data-action="autoCenter">Wyśrodkuj automatycznie</button>
+          <button class="light full" data-action="manualCenter">Ustaw środek ręcznie</button>
           ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki w tym pomieszczeniu.</div>' : ''}
         </div>
       </div>
 
       <div class="subBox">
-        <h4>Numeracja kratek</h4>
+        <h4>Litery i numery dla pomieszczenia ${index + 1}</h4>
         <div class="roomGrid">
           <label class="checkRow full">
             <input type="checkbox" data-group="labels" data-field="enabled" ${room.labels.enabled ? "checked" : ""}>
@@ -725,28 +680,6 @@ function getEstimatedLabelCount(room) {
   if (!grid || !pxPerMeter) return "Kratki do numeracji: po ustawieniu skali.";
   const cells = getRoomCells(room, grid);
   return `Kratki do numeracji: ${cells.length}`;
-}
-
-function getDefaultGridSettings() {
-  const widthValue = Number(gridWidthSizeInput.value);
-  const heightValue = Number(gridHeightSizeInput.value);
-  const lineWidth = Number(gridLineWidthInput.value);
-  const opacity = Number(gridOpacityInput.value);
-
-  if (!Number.isFinite(widthValue) || widthValue <= 0) return null;
-  if (!Number.isFinite(heightValue) || heightValue <= 0) return null;
-
-  return {
-    widthValue,
-    widthUnit: gridWidthUnitInput.value,
-    heightValue,
-    heightUnit: gridHeightUnitInput.value,
-    widthMeters: gridWidthUnitInput.value === "cm" ? widthValue / 100 : widthValue,
-    heightMeters: gridHeightUnitInput.value === "cm" ? heightValue / 100 : heightValue,
-    color: gridColorInput.value || "#777777",
-    lineWidth: Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth : 2,
-    opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0.1, opacity)) : 0.55
-  };
 }
 
 function getRoomGridSettings(room) {
@@ -1007,9 +940,6 @@ function updateStatus(message) {
   statusScale.textContent = pxPerMeter
     ? `Skala: 1 m = ${pxPerMeter.toFixed(1)} px`
     : `Skala: ${scalePoints.length}/2 punkty`;
-
-  statusGrid.textContent =
-    `Domyślna siatka: ${gridWidthSizeInput.value || "?"} ${gridWidthUnitInput.value} × ${gridHeightSizeInput.value || "?"} ${gridHeightUnitInput.value}`;
 
   statusRooms.textContent = `Pomieszczenia: ${rooms.length}`;
 

@@ -10,7 +10,7 @@
   <main class="app">
     <header>
       <h1>Apka do nakładania siatki na JPG/PNG</h1>
-      <div class="versionBadge">WERSJA 5 — osobne ustawienia siatki i numerów dla każdego pomieszczenia</div>
+      <div class="versionBadge">WERSJA 6 — każda siatka i numeracja osobno w karcie pomieszczenia</div>
       <p>Wgraj zdjęcie, ustaw skalę, zaznacz pomieszczenia i pobierz gotowy obraz z siatką.</p>
     </header>
 
@@ -51,39 +51,9 @@
         <button id="clearAllBtn" class="light dangerText">Wyczyść wszystko</button>
       </div>
 
-      <div class="step wide">
-        <h2>5. Domyślna siatka</h2>
-        <p>Te ustawienia będą kopiowane do nowego pomieszczenia. Potem możesz je zmienić osobno w panelu pomieszczeń.</p>
-
-        <label class="miniLabel">Szerokość kratki</label>
-        <div class="line">
-          <input id="gridWidthSizeInput" type="number" min="0.01" step="0.01" value="100" />
-          <select id="gridWidthUnitInput">
-            <option value="cm" selected>cm</option>
-            <option value="m">m</option>
-          </select>
-        </div>
-
-        <label class="miniLabel">Wysokość kratki</label>
-        <div class="line">
-          <input id="gridHeightSizeInput" type="number" min="0.01" step="0.01" value="100" />
-          <select id="gridHeightUnitInput">
-            <option value="cm" selected>cm</option>
-            <option value="m">m</option>
-          </select>
-        </div>
-
-        <label class="miniLabel">Kolor siatki</label>
-        <input id="gridColorInput" type="color" value="#777777" />
-
-        <label class="miniLabel">Grubość linii</label>
-        <div class="line">
-          <input id="gridLineWidthInput" type="number" min="1" max="10" step="1" value="2" />
-          <span class="unitBox">px</span>
-        </div>
-
-        <label class="miniLabel">Widoczność linii</label>
-        <input id="gridOpacityInput" type="range" min="0.1" max="1" step="0.05" value="0.55" />
+      <div class="step important">
+        <h2>5. Ustaw każde pomieszczenie osobno</h2>
+        <p>Po zamknięciu pomieszczenia pojawi się niżej jego karta. W tej jednej karcie ustawiasz wymiar kratki, kolor, centrowanie i napisy dla tego konkretnego pomieszczenia.</p>
       </div>
 
       <div class="step">
@@ -96,14 +66,13 @@
     <section class="info">
       <span id="statusImage">Brak obrazu</span>
       <span id="statusScale">Skala: nieustawiona</span>
-      <span id="statusGrid">Domyślna siatka: 100 × 100 cm</span>
       <span id="statusRooms">Pomieszczenia: 0</span>
       <span id="statusMode">Teraz: wgraj zdjęcie</span>
     </section>
 
     <section id="roomSettings" class="roomSettings">
-      <h2>7. Opcje pomieszczeń: siatka, centrowanie i numeracja</h2>
-      <p>Po zamknięciu pomieszczenia pojawią się tu jego osobne ustawienia: wymiar kratki, kolor, grubość, centrowanie, prefix i wygląd numerów.</p>
+      <h2>Ustawienia pomieszczeń</h2>
+      <p>Każde pomieszczenie ma własną siatkę i własną numerację. Zmiana w jednej karcie nie zmienia pozostałych pomieszczeń.</p>
       <div id="roomsPanel" class="roomsPanel"></div>
     </section>
 
