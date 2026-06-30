@@ -319,3 +319,10 @@ input[type="range"] {
     min-height: 420px;
   }
 }
+
+
+.emptyRoomCard {
+  grid-column: 1 / -1;
+  background: #fffdf6;
+  border-color: #eadcaa;
+}

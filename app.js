@@ -526,7 +526,17 @@ function drawDot(point, radius) {
 
 function updateRoomsPanel() {
   roomsPanel.innerHTML = "";
-  roomSettings.classList.toggle("hidden", rooms.length === 0);
+  roomSettings.classList.remove("hidden");
+
+  if (rooms.length === 0) {
+    roomsPanel.innerHTML = `
+      <div class="roomCard emptyRoomCard">
+        <h3>Brak zamkniętych pomieszczeń</h3>
+        <p class="small">Najpierw zaznacz narożniki pomieszczenia na obrazie i kliknij „Zamknij pomieszczenie”. Dopiero wtedy pojawią się tu opcje centrowania siatki i numerowania kratek dla tego pomieszczenia.</p>
+      </div>
+    `;
+    return;
+  }
 
   rooms.forEach((room, index) => {
     const card = document.createElement("div");

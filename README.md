@@ -23,3 +23,8 @@ Wersja v4.
 6. W panelu „Ustawienia osobno dla każdego pomieszczenia” ustaw siatkę i numerację.
 7. Kliknij „Pokaż podgląd”.
 8. Pobierz PNG.
+
+
+## v4.1
+
+Panel ustawień pomieszczeń jest teraz widoczny od razu. Gdy nie ma jeszcze zamkniętego pomieszczenia, pokazuje informację, co zrobić dalej.
