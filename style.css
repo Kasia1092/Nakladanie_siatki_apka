@@ -351,3 +351,10 @@ input[type="range"] {
     min-height: 420px;
   }
 }
+
+
+.modeButtonActive {
+  background: #b05a00 !important;
+  color: white !important;
+  border-color: #8d4800 !important;
+}

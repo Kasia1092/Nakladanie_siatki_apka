@@ -37,6 +37,7 @@ let rooms = [];
 
 let resultDataUrl = null;
 let manualCenterRoomIndex = null;
+let cellEditMode = null;
 
 const POINT_COLOR = "rgba(180, 60, 30, 0.95)";
 const ROOM_COLOR = "rgba(80, 80, 80, 0.9)";
@@ -74,6 +75,7 @@ fileInput.addEventListener("change", async () => {
     rooms = [];
     resultDataUrl = null;
     manualCenterRoomIndex = null;
+    cellEditMode = null;
 
     placeholder.classList.add("hidden");
     placeholder.style.display = "none";
@@ -116,6 +118,11 @@ editCanvas.addEventListener("click", (event) => {
     return;
   }
 
+  if (cellEditMode !== null) {
+    handleCellEditClick(point);
+    return;
+  }
+
   if (pxPerMeter === null && scalePoints.length < 2) {
     scalePoints.push(point);
 
@@ -136,7 +143,7 @@ editCanvas.addEventListener("click", (event) => {
 
   currentRoom.push(point);
   clearResult();
-  updateStatus("Klikaj kolejne narożniki pomieszczenia.");
+  updateStatus("Klikaj kolejne narożniki obszaru.");
   draw();
 });
 
@@ -163,7 +170,7 @@ setScaleBtn.addEventListener("click", () => {
   pxPerMeter = pixelDistance / meters;
   clearResult();
   updateRoomsPanel();
-  updateStatus("Skala zapisana. Teraz zaznaczaj pomieszczenia.");
+  updateStatus("Skala zapisana. Teraz zaznaczaj obszaru.");
   draw();
 });
 
@@ -173,6 +180,7 @@ clearScaleBtn.addEventListener("click", () => {
   currentRoom = [];
   rooms = [];
   manualCenterRoomIndex = null;
+  cellEditMode = null;
   clearResult();
   updateRoomsPanel();
   updateStatus(img ? "Kliknij dwa punkty do ustawienia skali." : "Wgraj zdjęcie.");
@@ -191,17 +199,18 @@ closeRoomBtn.addEventListener("click", () => {
   }
 
   if (currentRoom.length < 3) {
-    alert("Pomieszczenie musi mieć minimum 3 narożniki.");
+    alert("Obszar musi mieć minimum 3 narożniki.");
     return;
   }
 
   rooms.push(createRoom(currentRoom, rooms.length));
   currentRoom = [];
   manualCenterRoomIndex = null;
+  cellEditMode = null;
 
   clearResult();
   updateRoomsPanel();
-  updateStatus("Pomieszczenie zapisane. Możesz zaznaczyć kolejne.");
+  updateStatus("Obszar zapisany. Możesz zaznaczyć kolejny.");
   draw();
 });
 
@@ -220,20 +229,22 @@ undoPointBtn.addEventListener("click", () => {
 deleteRoomBtn.addEventListener("click", () => {
   rooms.pop();
   manualCenterRoomIndex = null;
+  cellEditMode = null;
   clearResult();
   updateRoomsPanel();
   draw();
-  updateStatus("Usunięto ostatnie pomieszczenie.");
+  updateStatus("Usunięto ostatnie obszar.");
 });
 
 clearAllBtn.addEventListener("click", () => {
-  if (!confirm("Wyczyścić skalę, pomieszczenia i podgląd?")) return;
+  if (!confirm("Wyczyścić skalę, obszary i podgląd?")) return;
 
   scalePoints = [];
   pxPerMeter = null;
   currentRoom = [];
   rooms = [];
   manualCenterRoomIndex = null;
+  cellEditMode = null;
 
   clearResult();
   updateRoomsPanel();
@@ -254,13 +265,13 @@ generateBtn.addEventListener("click", () => {
   }
 
   if (rooms.length === 0) {
-    alert("Najpierw zaznacz przynajmniej jedno pomieszczenie.");
+    alert("Najpierw zaznacz przynajmniej jedno obszar.");
     return;
   }
 
   for (const room of rooms) {
     if (!getRoomGridSettings(room)) {
-      alert("Jedno z pomieszczeń ma niepoprawne ustawienia siatki.");
+      alert("Jedno z obszarów ma niepoprawne ustawienia siatki.");
       return;
     }
   }
@@ -297,17 +308,27 @@ function createRoom(points, index) {
     },
     labels: {
       enabled: false,
-      prefix: `P${index + 1}-`,
+      prefix: "P",
+      separator: "",
       start: 1,
       end: "",
+      numberDigits: 1,
+      suffixSeparator: " ",
+      suffix: "",
       color: "#111111",
       opacity: 0.9,
       size: 22,
       bold: true,
-      position: "center"
-    }
+      position: "center",
+      direction: "left-right-down",
+      snake: false,
+      skipMode: "compact"
+    },
+    cellOverrides: {}
   };
 }
+
+
 
 function clearResult() {
   resultDataUrl = null;
@@ -324,6 +345,7 @@ function draw() {
   drawBox = getDrawBox(rect.width, rect.height, img.naturalWidth, img.naturalHeight);
   ctx.drawImage(img, drawBox.x, drawBox.y, drawBox.w, drawBox.h);
 
+  drawGridAndLabelsPreview();
   drawSavedRooms();
   drawRoomCenters();
   drawCurrentRoom();
@@ -509,8 +531,8 @@ function updateRoomsPanel() {
   if (rooms.length === 0) {
     roomsPanel.innerHTML = `
       <div class="roomCard emptyRoomCard">
-        <h3>Brak zamkniętych pomieszczeń</h3>
-        <p class="small">Najpierw zaznacz narożniki pomieszczenia na obrazie i kliknij „Zamknij pomieszczenie”. Dopiero wtedy pojawi się osobna karta z ustawieniami siatki i numeracji dla tego pomieszczenia.</p>
+        <h3>Brak zamkniętych obszarów</h3>
+        <p class="small">Najpierw zaznacz narożniki obszaru na obrazie i kliknij „Zamknij obszar”. Dopiero wtedy pojawi się osobna karta z ustawieniami siatki, numeracji i ręcznej edycji kratek.</p>
       </div>
     `;
     return;
@@ -521,13 +543,14 @@ function updateRoomsPanel() {
     card.className = "roomCard";
 
     const countText = getEstimatedLabelCount(room);
+    const overrideCount = Object.keys(room.cellOverrides || {}).length;
 
     card.innerHTML = `
-      <h3>Pomieszczenie ${index + 1}</h3>
-      <p class="small">${countText}</p>
+      <h3>Obszar ${index + 1}</h3>
+      <p class="small">${countText}. Ręcznie zmienione kratki: ${overrideCount}</p>
 
       <div class="subBox">
-        <h4>Siatka tylko dla pomieszczenia ${index + 1}</h4>
+        <h4>Siatka tylko dla obszaru ${index + 1}</h4>
         <div class="roomGrid">
           <label class="miniLabel">Szerokość kratki</label>
           <label class="miniLabel">Jednostka</label>
@@ -556,30 +579,40 @@ function updateRoomsPanel() {
       </div>
 
       <div class="subBox">
-        <h4>Środek kratki dla pomieszczenia ${index + 1}</h4>
+        <h4>Środek kratki dla obszaru ${index + 1}</h4>
         <div class="roomGrid">
           <button class="light full" data-action="autoCenter">Wyśrodkuj automatycznie</button>
           <button class="light full" data-action="manualCenter">Ustaw środek ręcznie</button>
-          ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki w tym pomieszczeniu.</div>' : ''}
+          ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki w tym obszarze.</div>' : ''}
         </div>
       </div>
 
       <div class="subBox">
-        <h4>Litery i numery dla pomieszczenia ${index + 1}</h4>
+        <h4>Automatyczne teksty i numery</h4>
         <div class="roomGrid">
           <label class="checkRow full">
             <input type="checkbox" data-group="labels" data-field="enabled" ${room.labels.enabled ? "checked" : ""}>
-            numeruj kratki w tym pomieszczeniu
+            pokazuj teksty w kratkach tego obszaru
           </label>
 
-          <label class="miniLabel">Litera / prefix</label>
-          <label class="miniLabel">Numer od</label>
+          <label class="miniLabel">Prefix / litera</label>
+          <label class="miniLabel">Separator</label>
           <input type="text" data-group="labels" data-field="prefix" value="${escapeHtml(room.labels.prefix)}">
-          <input type="number" data-group="labels" data-field="start" min="0" step="1" value="${room.labels.start}">
+          <input type="text" data-group="labels" data-field="separator" value="${escapeHtml(room.labels.separator)}" placeholder="np. -, / albo spacja">
 
+          <label class="miniLabel">Numer od</label>
           <label class="miniLabel">Numer do</label>
-          <label class="miniLabel">Pozycja w kratce</label>
+          <input type="number" data-group="labels" data-field="start" min="0" step="1" value="${room.labels.start}">
           <input type="number" data-group="labels" data-field="end" min="0" step="1" placeholder="auto" value="${escapeHtml(room.labels.end)}">
+
+          <label class="miniLabel">Ilość cyfr</label>
+          <label class="miniLabel">Dopisek / jednostka</label>
+          <input type="number" data-group="labels" data-field="numberDigits" min="1" max="6" step="1" value="${room.labels.numberDigits}">
+          <input type="text" data-group="labels" data-field="suffix" value="${escapeHtml(room.labels.suffix)}" placeholder="np. lx, lux, V, W">
+
+          <label class="miniLabel">Separator przed dopiskiem</label>
+          <label class="miniLabel">Pozycja w kratce</label>
+          <input type="text" data-group="labels" data-field="suffixSeparator" value="${escapeHtml(room.labels.suffixSeparator)}" placeholder="np. spacja albo -">
           <select data-group="labels" data-field="position">
             <option value="top-left" ${selected(room.labels.position, "top-left")}>góra lewo</option>
             <option value="top-center" ${selected(room.labels.position, "top-center")}>góra środek</option>
@@ -591,19 +624,63 @@ function updateRoomsPanel() {
             <option value="bottom-center" ${selected(room.labels.position, "bottom-center")}>dół środek</option>
             <option value="bottom-right" ${selected(room.labels.position, "bottom-right")}>dół prawo</option>
           </select>
+        </div>
+      </div>
 
-          <label class="miniLabel">Rozmiar liter</label>
-          <label class="miniLabel">Kolor liter</label>
+      <div class="subBox">
+        <h4>Kolejność numerowania</h4>
+        <div class="roomGrid">
+          <label class="miniLabel full">Kierunek</label>
+          <select class="full" data-group="labels" data-field="direction">
+            <option value="left-right-down" ${selected(room.labels.direction, "left-right-down")}>od lewej do prawej, potem w dół</option>
+            <option value="right-left-down" ${selected(room.labels.direction, "right-left-down")}>od prawej do lewej, potem w dół</option>
+            <option value="left-right-up" ${selected(room.labels.direction, "left-right-up")}>od lewej do prawej, potem w górę</option>
+            <option value="right-left-up" ${selected(room.labels.direction, "right-left-up")}>od prawej do lewej, potem w górę</option>
+            <option value="top-bottom-right" ${selected(room.labels.direction, "top-bottom-right")}>od góry do dołu, potem w prawo</option>
+            <option value="bottom-top-right" ${selected(room.labels.direction, "bottom-top-right")}>od dołu do góry, potem w prawo</option>
+            <option value="top-bottom-left" ${selected(room.labels.direction, "top-bottom-left")}>od góry do dołu, potem w lewo</option>
+            <option value="bottom-top-left" ${selected(room.labels.direction, "bottom-top-left")}>od dołu do góry, potem w lewo</option>
+          </select>
+
+          <label class="checkRow full">
+            <input type="checkbox" data-group="labels" data-field="snake" ${room.labels.snake ? "checked" : ""}>
+            numeruj wężykiem
+          </label>
+
+          <label class="miniLabel full">Gdy kratka jest pominięta</label>
+          <select class="full" data-group="labels" data-field="skipMode">
+            <option value="compact" ${selected(room.labels.skipMode, "compact")}>bez luk: P1, pominięta, P2</option>
+            <option value="gaps" ${selected(room.labels.skipMode, "gaps")}>z lukami: P1, pominięta, P3</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="subBox">
+        <h4>Wygląd tekstów</h4>
+        <div class="roomGrid">
+          <label class="miniLabel">Rozmiar</label>
+          <label class="miniLabel">Kolor</label>
           <input type="number" data-group="labels" data-field="size" min="6" max="200" step="1" value="${room.labels.size}">
           <input type="color" data-group="labels" data-field="color" value="${room.labels.color}">
 
-          <label class="miniLabel">Transparentność liter</label>
+          <label class="miniLabel">Transparentność</label>
           <label class="miniLabel">Pogrubienie</label>
           <input type="range" data-group="labels" data-field="opacity" min="0.1" max="1" step="0.05" value="${room.labels.opacity}">
           <label class="checkRow">
             <input type="checkbox" data-group="labels" data-field="bold" ${room.labels.bold ? "checked" : ""}>
             pogrub
           </label>
+        </div>
+      </div>
+
+      <div class="subBox">
+        <h4>Ręczna edycja pojedynczych kratek</h4>
+        <div class="roomGrid">
+          <button class="light full ${isModeActive(index, "skip")}" data-action="skipCells">Klikaj kratki: pomiń / przywróć</button>
+          <button class="light full ${isModeActive(index, "custom")}" data-action="customCells">Kliknij kratkę i wpisz własny tekst</button>
+          <button class="light full ${isModeActive(index, "restore")}" data-action="restoreCells">Klikaj kratki: przywróć auto</button>
+          <button class="light full" data-action="clearOverrides">Wyczyść ręczne zmiany tego obszaru</button>
+          ${cellEditMode && cellEditMode.areaIndex === index ? '<div class="manualNotice full">Tryb klikania kratek jest włączony dla tego obszaru. Kliknij kratkę na obrazie.</div>' : ''}
         </div>
       </div>
     `;
@@ -614,14 +691,27 @@ function updateRoomsPanel() {
       manualCenterRoomIndex = null;
       clearResult();
       updateRoomsPanel();
-      updateStatus(`Pomieszczenie ${index + 1}: siatka wyśrodkowana automatycznie.`);
+      updateStatus(`Obszar ${index + 1}: siatka wyśrodkowana automatycznie.`);
       draw();
     });
 
     card.querySelector('[data-action="manualCenter"]').addEventListener("click", () => {
       manualCenterRoomIndex = index;
+      cellEditMode = null;
       updateRoomsPanel();
-      updateStatus(`Kliknij na obrazie środek kratki dla pomieszczenia ${index + 1}.`);
+      updateStatus(`Kliknij na obrazie środek kratki dla obszaru ${index + 1}.`);
+      draw();
+    });
+
+    card.querySelector('[data-action="skipCells"]').addEventListener("click", () => toggleCellMode(index, "skip"));
+    card.querySelector('[data-action="customCells"]').addEventListener("click", () => toggleCellMode(index, "custom"));
+    card.querySelector('[data-action="restoreCells"]').addEventListener("click", () => toggleCellMode(index, "restore"));
+    card.querySelector('[data-action="clearOverrides"]').addEventListener("click", () => {
+      if (!confirm("Wyczyścić ręczne zmiany kratek w tym obszarze?")) return;
+      room.cellOverrides = {};
+      clearResult();
+      updateRoomsPanel();
+      updateStatus(`Wyczyszczono ręczne zmiany obszaru ${index + 1}.`);
       draw();
     });
 
@@ -630,18 +720,22 @@ function updateRoomsPanel() {
         updateRoomFromInput(room, input);
         clearResult();
         updateStatus();
+        draw();
       });
 
       input.addEventListener("change", () => {
         updateRoomFromInput(room, input);
         clearResult();
         updateStatus();
+        draw();
       });
     });
 
     roomsPanel.appendChild(card);
   });
 }
+
+
 
 function selected(current, value) {
   return current === value ? "selected" : "";
@@ -659,21 +753,31 @@ function updateRoomFromInput(room, input) {
     if (field === "color") room.grid.color = input.value || "#777777";
     if (field === "lineWidth") room.grid.lineWidth = Number(input.value) || 2;
     if (field === "opacity") room.grid.opacity = Number(input.value) || 0.55;
+    room.cellOverrides = {};
     return;
   }
 
   if (group === "labels") {
     if (field === "enabled") room.labels.enabled = input.checked;
     if (field === "prefix") room.labels.prefix = input.value;
+    if (field === "separator") room.labels.separator = input.value;
     if (field === "start") room.labels.start = Number(input.value) || 0;
     if (field === "end") room.labels.end = input.value;
+    if (field === "numberDigits") room.labels.numberDigits = Number(input.value) || 1;
+    if (field === "suffixSeparator") room.labels.suffixSeparator = input.value;
+    if (field === "suffix") room.labels.suffix = input.value;
     if (field === "position") room.labels.position = input.value;
+    if (field === "direction") room.labels.direction = input.value;
+    if (field === "snake") room.labels.snake = input.checked;
+    if (field === "skipMode") room.labels.skipMode = input.value;
     if (field === "size") room.labels.size = Number(input.value) || 22;
     if (field === "color") room.labels.color = input.value || "#111111";
     if (field === "opacity") room.labels.opacity = Number(input.value) || 0.9;
     if (field === "bold") room.labels.bold = input.checked;
   }
 }
+
+
 
 function getEstimatedLabelCount(room) {
   const grid = getRoomGridSettings(room);
@@ -774,15 +878,14 @@ function drawGridInRoom(outCtx, room, grid) {
 }
 
 function drawLabelsInRoom(outCtx, room, grid) {
-  const cells = getRoomCells(room, grid);
+  const cells = getOrderedCells(room, grid);
   const labels = room.labels;
-
-  const start = Number(labels.start) || 0;
-  const end = labels.end === "" ? Infinity : Number(labels.end);
 
   const color = hexToRgba(labels.color, labels.opacity);
   const fontSize = Math.max(6, Number(labels.size) || 22);
   const fontWeight = labels.bold ? "bold" : "normal";
+  const start = Number(labels.start) || 0;
+  const end = labels.end === "" ? Infinity : Number(labels.end);
 
   outCtx.save();
   pathRoom(outCtx, room.points);
@@ -794,19 +897,34 @@ function drawLabelsInRoom(outCtx, room, grid) {
   let number = start;
 
   for (const cell of cells) {
+    const override = room.cellOverrides?.[cell.key];
+
+    if (override && override.mode === "skip") {
+      if (labels.skipMode === "gaps") number += 1;
+      continue;
+    }
+
     if (number > end) break;
+
+    let text = formatAutoLabel(room, number);
+
+    if (override && override.mode === "custom") {
+      text = override.text;
+    }
 
     const labelPoint = getLabelPointInCell(cell, grid, labels.position);
 
     outCtx.textAlign = labelPoint.align;
     outCtx.textBaseline = labelPoint.baseline;
-    outCtx.fillText(`${labels.prefix}${number}`, labelPoint.x, labelPoint.y);
+    outCtx.fillText(text, labelPoint.x, labelPoint.y);
 
     number += 1;
   }
 
   outCtx.restore();
 }
+
+
 
 function getRoomCells(room, grid) {
   const stepX = pxPerMeter * grid.widthMeters;
@@ -819,20 +937,244 @@ function getRoomCells(room, grid) {
   const firstCenterX = origin.x + Math.floor((bounds.minX - origin.x) / stepX) * stepX;
   const firstCenterY = origin.y + Math.floor((bounds.minY - origin.y) / stepY) * stepY;
 
+  let row = 0;
   for (let y = firstCenterY; y <= bounds.maxY + stepY; y += stepY) {
+    let col = 0;
     for (let x = firstCenterX; x <= bounds.maxX + stepX; x += stepX) {
       if (pointInPolygon({ x, y }, room.points)) {
-        cells.push({ x, y, stepX, stepY });
+        cells.push({ x, y, row, col, stepX, stepY, key: `${row}:${col}` });
       }
+      col += 1;
+    }
+    row += 1;
+  }
+
+  return cells;
+}
+
+
+
+
+function drawGridAndLabelsPreview() {
+  if (!drawBox || pxPerMeter === null) return;
+
+  ctx.save();
+  ctx.translate(drawBox.x, drawBox.y);
+  ctx.scale(drawBox.scale, drawBox.scale);
+
+  for (const room of rooms) {
+    const grid = getRoomGridSettings(room);
+    if (grid) drawGridInRoom(ctx, room, grid);
+  }
+
+  for (const room of rooms) {
+    const grid = getRoomGridSettings(room);
+    if (grid && room.labels.enabled) drawLabelsInRoom(ctx, room, grid);
+  }
+
+  drawCellOverrideMarks(ctx);
+  ctx.restore();
+}
+
+function drawCellOverrideMarks(outCtx) {
+  if (!pxPerMeter) return;
+
+  for (const room of rooms) {
+    const grid = getRoomGridSettings(room);
+    if (!grid) continue;
+
+    const cells = getRoomCells(room, grid);
+    const cellMap = new Map(cells.map(cell => [cell.key, cell]));
+
+    outCtx.save();
+    pathRoom(outCtx, room.points);
+    outCtx.clip();
+
+    for (const [key, override] of Object.entries(room.cellOverrides || {})) {
+      const cell = cellMap.get(key);
+      if (!cell) continue;
+
+      outCtx.fillStyle = override.mode === "skip"
+        ? "rgba(220, 60, 60, 0.18)"
+        : "rgba(255, 190, 40, 0.22)";
+
+      outCtx.fillRect(cell.x - cell.stepX / 2, cell.y - cell.stepY / 2, cell.stepX, cell.stepY);
+    }
+
+    outCtx.restore();
+  }
+}
+
+function toggleCellMode(roomIndex, type) {
+  manualCenterRoomIndex = null;
+
+  if (cellEditMode && cellEditMode.areaIndex === roomIndex && cellEditMode.type === type) {
+    cellEditMode = null;
+    updateStatus("Tryb klikania kratek wyłączony.");
+  } else {
+    cellEditMode = { areaIndex: roomIndex, type };
+    if (type === "skip") updateStatus(`Obszar ${roomIndex + 1}: klikaj kratki, które mają być pominięte albo przywrócone.`);
+    if (type === "custom") updateStatus(`Obszar ${roomIndex + 1}: kliknij kratkę, żeby wpisać własny tekst.`);
+    if (type === "restore") updateStatus(`Obszar ${roomIndex + 1}: klikaj kratki, które mają wrócić do automatu.`);
+  }
+
+  updateRoomsPanel();
+  draw();
+}
+
+function isModeActive(roomIndex, type) {
+  return cellEditMode && cellEditMode.areaIndex === roomIndex && cellEditMode.type === type
+    ? "modeButtonActive"
+    : "";
+}
+
+function handleCellEditClick(point) {
+  const room = rooms[cellEditMode.areaIndex];
+  if (!room) return;
+
+  const grid = getRoomGridSettings(room);
+  if (!grid) {
+    alert("Najpierw ustaw poprawną siatkę dla tego obszaru.");
+    return;
+  }
+
+  const cell = findCellAtPoint(room, grid, point);
+  if (!cell) {
+    updateStatus("Kliknij środek kratki w wybranym obszarze.");
+    return;
+  }
+
+  const currentOverride = room.cellOverrides?.[cell.key];
+
+  if (cellEditMode.type === "skip") {
+    if (currentOverride && currentOverride.mode === "skip") {
+      delete room.cellOverrides[cell.key];
+      updateStatus("Kratka wróciła do numeracji.");
+    } else {
+      room.cellOverrides[cell.key] = { mode: "skip" };
+      updateStatus("Kratka pominięta w numeracji.");
     }
   }
 
-  cells.sort((a, b) => {
-    if (Math.abs(a.y - b.y) > stepY / 3) return a.y - b.y;
-    return a.x - b.x;
+  if (cellEditMode.type === "custom") {
+    const autoText = getAutoTextForCell(room, grid, cell.key) || "";
+    const oldText = currentOverride && currentOverride.mode === "custom" ? currentOverride.text : autoText;
+    const text = prompt("Wpisz własny tekst dla tej kratki. Puste pole usunie napis z kratki.", oldText);
+
+    if (text === null) return;
+
+    if (text.trim() === "") {
+      room.cellOverrides[cell.key] = { mode: "skip" };
+      updateStatus("Usunięto napis z kratki.");
+    } else {
+      room.cellOverrides[cell.key] = { mode: "custom", text };
+      updateStatus("Zapisano własny tekst kratki.");
+    }
+  }
+
+  if (cellEditMode.type === "restore") {
+    delete room.cellOverrides[cell.key];
+    updateStatus("Przywrócono automatyczny napis kratki.");
+  }
+
+  clearResult();
+  updateRoomsPanel();
+  draw();
+}
+
+function formatAutoLabel(room, number) {
+  const labels = room.labels;
+  const digits = Math.max(1, Number(labels.numberDigits) || 1);
+  const padded = String(number).padStart(digits, "0");
+  const suffix = labels.suffix ? `${labels.suffixSeparator || ""}${labels.suffix}` : "";
+  return `${labels.prefix || ""}${labels.separator || ""}${padded}${suffix}`;
+}
+
+function getAutoTextForCell(room, grid, key) {
+  const cells = getOrderedCells(room, grid);
+  const labels = room.labels;
+  let number = Number(labels.start) || 0;
+  const end = labels.end === "" ? Infinity : Number(labels.end);
+
+  for (const cell of cells) {
+    const override = room.cellOverrides?.[cell.key];
+
+    if (override && override.mode === "skip") {
+      if (labels.skipMode === "gaps") number += 1;
+      continue;
+    }
+
+    if (number > end) return "";
+
+    if (cell.key === key) {
+      return formatAutoLabel(room, number);
+    }
+
+    number += 1;
+  }
+
+  return "";
+}
+
+function getOrderedCells(room, grid) {
+  const cells = getRoomCells(room, grid);
+  const dir = room.labels.direction || "left-right-down";
+  const snake = Boolean(room.labels.snake);
+
+  if (dir.includes("left-right") || dir.includes("right-left")) {
+    const rowAsc = dir.endsWith("down");
+    const colAscBase = dir.startsWith("left-right");
+    return orderByPrimary(cells, "row", "col", rowAsc, colAscBase, snake);
+  }
+
+  const colAsc = dir.endsWith("right");
+  const rowAscBase = dir.startsWith("top-bottom");
+  return orderByPrimary(cells, "col", "row", colAsc, rowAscBase, snake);
+}
+
+function orderByPrimary(cells, primaryKey, secondaryKey, primaryAsc, secondaryAscBase, snake) {
+  const groups = new Map();
+
+  for (const cell of cells) {
+    const key = cell[primaryKey];
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(cell);
+  }
+
+  const primaryValues = Array.from(groups.keys()).sort((a, b) => primaryAsc ? a - b : b - a);
+  const ordered = [];
+
+  primaryValues.forEach((primaryValue, index) => {
+    const group = groups.get(primaryValue);
+    const secondaryAsc = snake && index % 2 === 1 ? !secondaryAscBase : secondaryAscBase;
+
+    group.sort((a, b) => secondaryAsc
+      ? a[secondaryKey] - b[secondaryKey]
+      : b[secondaryKey] - a[secondaryKey]
+    );
+
+    ordered.push(...group);
   });
 
-  return cells;
+  return ordered;
+}
+
+function findCellAtPoint(room, grid, point) {
+  const cells = getRoomCells(room, grid);
+
+  for (const cell of cells) {
+    const insideCell =
+      point.x >= cell.x - cell.stepX / 2 &&
+      point.x <= cell.x + cell.stepX / 2 &&
+      point.y >= cell.y - cell.stepY / 2 &&
+      point.y <= cell.y + cell.stepY / 2;
+
+    if (insideCell && pointInPolygon(point, room.points)) {
+      return cell;
+    }
+  }
+
+  return null;
 }
 
 function getLabelPointInCell(cell, grid, position) {
@@ -941,7 +1283,7 @@ function updateStatus(message) {
     ? `Skala: 1 m = ${pxPerMeter.toFixed(1)} px`
     : `Skala: ${scalePoints.length}/2 punkty`;
 
-  statusRooms.textContent = `Pomieszczenia: ${rooms.length}`;
+  statusRooms.textContent = `Obszary: ${rooms.length}`;
 
   if (message) {
     statusMode.textContent = `Teraz: ${message}`;
@@ -950,9 +1292,9 @@ function updateStatus(message) {
   } else if (pxPerMeter === null) {
     statusMode.textContent = "Teraz: ustaw skalę";
   } else if (manualCenterRoomIndex !== null) {
-    statusMode.textContent = `Teraz: kliknij środek kratki dla pomieszczenia ${manualCenterRoomIndex + 1}`;
+    statusMode.textContent = `Teraz: kliknij środek kratki dla obszaru ${manualCenterRoomIndex + 1}`;
   } else {
-    statusMode.textContent = "Teraz: zaznacz pomieszczenia";
+    statusMode.textContent = "Teraz: zaznacz obszaru";
   }
 }
 

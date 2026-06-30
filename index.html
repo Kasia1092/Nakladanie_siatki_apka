@@ -10,8 +10,8 @@
   <main class="app">
     <header>
       <h1>Apka do nakładania siatki na JPG/PNG</h1>
-      <div class="versionBadge">WERSJA 6 — każda siatka i numeracja osobno w karcie pomieszczenia</div>
-      <p>Wgraj zdjęcie, ustaw skalę, zaznacz pomieszczenia i pobierz gotowy obraz z siatką.</p>
+      <div class="versionBadge">WERSJA 7 — obszary, własne siatki i zaawansowana numeracja</div>
+      <p>Wgraj zdjęcie, ustaw skalę, zaznacz obszary i pobierz gotowy obraz z siatką.</p>
     </header>
 
     <section class="steps">
@@ -43,17 +43,17 @@
       </div>
 
       <div class="step">
-        <h2>4. Zaznacz pomieszczenia</h2>
-        <p>Klikaj po kolei wszystkie narożniki pomieszczenia lub korytarza. Gdy zaznaczysz wszystkie narożniki, kliknij „Zamknij pomieszczenie”.</p>
-        <button id="closeRoomBtn">Zamknij pomieszczenie</button>
+        <h2>4. Zaznacz obszaru</h2>
+        <p>Klikaj po kolei wszystkie narożniki obszaru lub korytarza. Gdy zaznaczysz wszystkie narożniki, kliknij „Zamknij obszar”.</p>
+        <button id="closeRoomBtn">Zamknij obszar</button>
         <button id="undoPointBtn" class="light">Cofnij ostatnie kliknięcie</button>
-        <button id="deleteRoomBtn" class="light">Usuń ostatnie pomieszczenie</button>
+        <button id="deleteRoomBtn" class="light">Usuń ostatnie obszar</button>
         <button id="clearAllBtn" class="light dangerText">Wyczyść wszystko</button>
       </div>
 
       <div class="step important">
-        <h2>5. Ustaw każde pomieszczenie osobno</h2>
-        <p>Po zamknięciu pomieszczenia pojawi się niżej jego karta. W tej jednej karcie ustawiasz wymiar kratki, kolor, centrowanie i napisy dla tego konkretnego pomieszczenia.</p>
+        <h2>5. Ustaw każdy obszar osobno</h2>
+        <p>Po zamknięciu obszaru pojawi się niżej jego karta. W tej jednej karcie ustawiasz wymiar kratki, kolor, centrowanie, kolejność numerowania, jednostki i ręczne zmiany pojedynczych kratek dla tego konkretnego obszaru.</p>
       </div>
 
       <div class="step">
@@ -66,13 +66,13 @@
     <section class="info">
       <span id="statusImage">Brak obrazu</span>
       <span id="statusScale">Skala: nieustawiona</span>
-      <span id="statusRooms">Pomieszczenia: 0</span>
+      <span id="statusRooms">Obszary: 0</span>
       <span id="statusMode">Teraz: wgraj zdjęcie</span>
     </section>
 
     <section id="roomSettings" class="roomSettings">
-      <h2>Ustawienia pomieszczeń</h2>
-      <p>Każde pomieszczenie ma własną siatkę i własną numerację. Zmiana w jednej karcie nie zmienia pozostałych pomieszczeń.</p>
+      <h2>Ustawienia obszarów</h2>
+      <p>Każde obszar ma własną siatkę i własną numerację. Zmiana w jednej karcie nie zmienia pozostałych obszarów.</p>
       <div id="roomsPanel" class="roomsPanel"></div>
     </section>
 
@@ -80,7 +80,7 @@
       <canvas id="editCanvas"></canvas>
       <div id="placeholder">
         <strong>Tu pojawi się obraz</strong>
-        <span>Po wgraniu kliknij dwa punkty do skali, potem zaznacz narożniki pomieszczeń.</span>
+        <span>Po wgraniu kliknij dwa punkty do skali, potem zaznacz narożniki obszarów.</span>
       </div>
     </section>
 
