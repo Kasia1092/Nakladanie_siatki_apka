@@ -268,13 +268,20 @@ generateBtn.addEventListener("click", () => {
     return;
   }
 
-  const grid = getGridSettings();
-  if (!grid) {
-    alert("Wpisz poprawny wymiar siatki.");
+  const defaultGrid = getDefaultGridSettings();
+  if (!defaultGrid) {
+    alert("Wpisz poprawny domyślny wymiar siatki.");
     return;
   }
 
-  resultDataUrl = makeResultImage(grid);
+  for (const room of rooms) {
+    if (!getRoomGridSettings(room)) {
+      alert("Jedno z pomieszczeń ma niepoprawne ustawienia siatki.");
+      return;
+    }
+  }
+
+  resultDataUrl = makeResultImage();
   previewImage.src = resultDataUrl;
   previewSection.classList.remove("hidden");
   downloadBtn.disabled = false;
@@ -302,20 +309,37 @@ downloadBtn.addEventListener("click", () => {
   element.addEventListener("input", () => {
     clearResult();
     updateStatus();
-    updateRoomsPanel();
   });
   element.addEventListener("change", () => {
     clearResult();
     updateStatus();
-    updateRoomsPanel();
   });
 });
 
 function createRoom(points) {
+  const defaultGrid = getDefaultGridSettings() || {
+    widthValue: 100,
+    widthUnit: "cm",
+    heightValue: 100,
+    heightUnit: "cm",
+    color: "#777777",
+    lineWidth: 2,
+    opacity: 0.55
+  };
+
   return {
     points: points.map(p => ({ x: p.x, y: p.y })),
     gridOriginMode: "center",
     manualCenter: null,
+    grid: {
+      widthValue: defaultGrid.widthValue,
+      widthUnit: defaultGrid.widthUnit,
+      heightValue: defaultGrid.heightValue,
+      heightUnit: defaultGrid.heightUnit,
+      color: defaultGrid.color,
+      lineWidth: defaultGrid.lineWidth,
+      opacity: defaultGrid.opacity
+    },
     labels: {
       enabled: false,
       prefix: "P",
@@ -526,13 +550,12 @@ function drawDot(point, radius) {
 
 function updateRoomsPanel() {
   roomsPanel.innerHTML = "";
-  roomSettings.classList.remove("hidden");
 
   if (rooms.length === 0) {
     roomsPanel.innerHTML = `
       <div class="roomCard emptyRoomCard">
         <h3>Brak zamkniętych pomieszczeń</h3>
-        <p class="small">Najpierw zaznacz narożniki pomieszczenia na obrazie i kliknij „Zamknij pomieszczenie”. Dopiero wtedy pojawią się tu opcje centrowania siatki i numerowania kratek dla tego pomieszczenia.</p>
+        <p class="small">Najpierw zaznacz narożniki pomieszczenia na obrazie i kliknij „Zamknij pomieszczenie”. Dopiero wtedy pojawią się tu opcje centrowania, siatki i numerowania kratek dla tego pomieszczenia.</p>
       </div>
     `;
     return;
@@ -548,49 +571,85 @@ function updateRoomsPanel() {
       <h3>Pomieszczenie ${index + 1}</h3>
       <p class="small">${countText}</p>
 
-      <div class="roomGrid">
-        <label class="full miniLabel">Ustawienie siatki w tym pomieszczeniu</label>
-        <button class="light full" data-action="autoCenter">Wyśrodkuj siatkę automatycznie</button>
-        <button class="light full" data-action="manualCenter">Ustaw środek kratki ręcznie</button>
-        ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki w tym pomieszczeniu.</div>' : ''}
+      <div class="subBox">
+        <h4>Siatka w tym pomieszczeniu</h4>
+        <div class="roomGrid">
+          <label class="miniLabel">Szerokość kratki</label>
+          <label class="miniLabel">Jednostka</label>
+          <input type="number" data-group="grid" data-field="widthValue" min="0.01" step="0.01" value="${room.grid.widthValue}">
+          <select data-group="grid" data-field="widthUnit">
+            <option value="cm" ${selected(room.grid.widthUnit, "cm")}>cm</option>
+            <option value="m" ${selected(room.grid.widthUnit, "m")}>m</option>
+          </select>
 
-        <label class="checkRow full">
-          <input type="checkbox" data-field="enabled" ${room.labels.enabled ? "checked" : ""}>
-          numeruj kratki w tym pomieszczeniu
-        </label>
+          <label class="miniLabel">Wysokość kratki</label>
+          <label class="miniLabel">Jednostka</label>
+          <input type="number" data-group="grid" data-field="heightValue" min="0.01" step="0.01" value="${room.grid.heightValue}">
+          <select data-group="grid" data-field="heightUnit">
+            <option value="cm" ${selected(room.grid.heightUnit, "cm")}>cm</option>
+            <option value="m" ${selected(room.grid.heightUnit, "m")}>m</option>
+          </select>
 
-        <label class="miniLabel">Litera / prefix</label>
-        <label class="miniLabel">Numer od</label>
-        <input type="text" data-field="prefix" value="${escapeHtml(room.labels.prefix)}">
-        <input type="number" data-field="start" min="0" step="1" value="${room.labels.start}">
+          <label class="miniLabel">Kolor siatki</label>
+          <label class="miniLabel">Grubość</label>
+          <input type="color" data-group="grid" data-field="color" value="${room.grid.color}">
+          <input type="number" data-group="grid" data-field="lineWidth" min="1" max="10" step="1" value="${room.grid.lineWidth}">
 
-        <label class="miniLabel">Numer do</label>
-        <label class="miniLabel">Pozycja w kratce</label>
-        <input type="number" data-field="end" min="0" step="1" placeholder="auto" value="${escapeHtml(room.labels.end)}">
-        <select data-field="position">
-          <option value="top-left" ${selected(room.labels.position, "top-left")}>góra lewo</option>
-          <option value="top-center" ${selected(room.labels.position, "top-center")}>góra środek</option>
-          <option value="top-right" ${selected(room.labels.position, "top-right")}>góra prawo</option>
-          <option value="center-left" ${selected(room.labels.position, "center-left")}>środek lewo</option>
-          <option value="center" ${selected(room.labels.position, "center")}>środek</option>
-          <option value="center-right" ${selected(room.labels.position, "center-right")}>środek prawo</option>
-          <option value="bottom-left" ${selected(room.labels.position, "bottom-left")}>dół lewo</option>
-          <option value="bottom-center" ${selected(room.labels.position, "bottom-center")}>dół środek</option>
-          <option value="bottom-right" ${selected(room.labels.position, "bottom-right")}>dół prawo</option>
-        </select>
+          <label class="miniLabel full">Transparentność siatki</label>
+          <input class="full" type="range" data-group="grid" data-field="opacity" min="0.1" max="1" step="0.05" value="${room.grid.opacity}">
+        </div>
+      </div>
 
-        <label class="miniLabel">Rozmiar liter</label>
-        <label class="miniLabel">Kolor liter</label>
-        <input type="number" data-field="size" min="6" max="200" step="1" value="${room.labels.size}">
-        <input type="color" data-field="color" value="${room.labels.color}">
+      <div class="subBox">
+        <h4>Środek siatki</h4>
+        <div class="roomGrid">
+          <button class="light full" data-action="autoCenter">Wyśrodkuj siatkę automatycznie</button>
+          <button class="light full" data-action="manualCenter">Ustaw środek kratki ręcznie</button>
+          ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki w tym pomieszczeniu.</div>' : ''}
+        </div>
+      </div>
 
-        <label class="miniLabel">Transparentność liter</label>
-        <label class="miniLabel">Pogrubienie</label>
-        <input type="range" data-field="opacity" min="0.1" max="1" step="0.05" value="${room.labels.opacity}">
-        <label class="checkRow">
-          <input type="checkbox" data-field="bold" ${room.labels.bold ? "checked" : ""}>
-          pogrub
-        </label>
+      <div class="subBox">
+        <h4>Numeracja kratek</h4>
+        <div class="roomGrid">
+          <label class="checkRow full">
+            <input type="checkbox" data-group="labels" data-field="enabled" ${room.labels.enabled ? "checked" : ""}>
+            numeruj kratki w tym pomieszczeniu
+          </label>
+
+          <label class="miniLabel">Litera / prefix</label>
+          <label class="miniLabel">Numer od</label>
+          <input type="text" data-group="labels" data-field="prefix" value="${escapeHtml(room.labels.prefix)}">
+          <input type="number" data-group="labels" data-field="start" min="0" step="1" value="${room.labels.start}">
+
+          <label class="miniLabel">Numer do</label>
+          <label class="miniLabel">Pozycja w kratce</label>
+          <input type="number" data-group="labels" data-field="end" min="0" step="1" placeholder="auto" value="${escapeHtml(room.labels.end)}">
+          <select data-group="labels" data-field="position">
+            <option value="top-left" ${selected(room.labels.position, "top-left")}>góra lewo</option>
+            <option value="top-center" ${selected(room.labels.position, "top-center")}>góra środek</option>
+            <option value="top-right" ${selected(room.labels.position, "top-right")}>góra prawo</option>
+            <option value="center-left" ${selected(room.labels.position, "center-left")}>środek lewo</option>
+            <option value="center" ${selected(room.labels.position, "center")}>środek</option>
+            <option value="center-right" ${selected(room.labels.position, "center-right")}>środek prawo</option>
+            <option value="bottom-left" ${selected(room.labels.position, "bottom-left")}>dół lewo</option>
+            <option value="bottom-center" ${selected(room.labels.position, "bottom-center")}>dół środek</option>
+            <option value="bottom-right" ${selected(room.labels.position, "bottom-right")}>dół prawo</option>
+          </select>
+
+          <label class="miniLabel">Rozmiar liter</label>
+          <label class="miniLabel">Kolor liter</label>
+          <input type="number" data-group="labels" data-field="size" min="6" max="200" step="1" value="${room.labels.size}">
+          <input type="color" data-group="labels" data-field="color" value="${room.labels.color}">
+
+          <label class="miniLabel">Transparentność liter</label>
+          <label class="miniLabel">Pogrubienie</label>
+          <input type="range" data-group="labels" data-field="opacity" min="0.1" max="1" step="0.05" value="${room.labels.opacity}">
+          <label class="checkRow">
+            <input type="checkbox" data-group="labels" data-field="bold" ${room.labels.bold ? "checked" : ""}>
+            pogrub
+          </label>
+        </div>
       </div>
     `;
 
@@ -634,27 +693,41 @@ function selected(current, value) {
 }
 
 function updateRoomFromInput(room, input) {
+  const group = input.dataset.group;
   const field = input.dataset.field;
 
-  if (field === "enabled") room.labels.enabled = input.checked;
-  if (field === "prefix") room.labels.prefix = input.value;
-  if (field === "start") room.labels.start = Number(input.value) || 0;
-  if (field === "end") room.labels.end = input.value;
-  if (field === "position") room.labels.position = input.value;
-  if (field === "size") room.labels.size = Number(input.value) || 22;
-  if (field === "color") room.labels.color = input.value || "#111111";
-  if (field === "opacity") room.labels.opacity = Number(input.value) || 0.9;
-  if (field === "bold") room.labels.bold = input.checked;
+  if (group === "grid") {
+    if (field === "widthValue") room.grid.widthValue = Number(input.value) || 0;
+    if (field === "widthUnit") room.grid.widthUnit = input.value;
+    if (field === "heightValue") room.grid.heightValue = Number(input.value) || 0;
+    if (field === "heightUnit") room.grid.heightUnit = input.value;
+    if (field === "color") room.grid.color = input.value || "#777777";
+    if (field === "lineWidth") room.grid.lineWidth = Number(input.value) || 2;
+    if (field === "opacity") room.grid.opacity = Number(input.value) || 0.55;
+    return;
+  }
+
+  if (group === "labels") {
+    if (field === "enabled") room.labels.enabled = input.checked;
+    if (field === "prefix") room.labels.prefix = input.value;
+    if (field === "start") room.labels.start = Number(input.value) || 0;
+    if (field === "end") room.labels.end = input.value;
+    if (field === "position") room.labels.position = input.value;
+    if (field === "size") room.labels.size = Number(input.value) || 22;
+    if (field === "color") room.labels.color = input.value || "#111111";
+    if (field === "opacity") room.labels.opacity = Number(input.value) || 0.9;
+    if (field === "bold") room.labels.bold = input.checked;
+  }
 }
 
 function getEstimatedLabelCount(room) {
-  const grid = getGridSettings();
+  const grid = getRoomGridSettings(room);
   if (!grid || !pxPerMeter) return "Kratki do numeracji: po ustawieniu skali.";
   const cells = getRoomCells(room, grid);
   return `Kratki do numeracji: ${cells.length}`;
 }
 
-function getGridSettings() {
+function getDefaultGridSettings() {
   const widthValue = Number(gridWidthSizeInput.value);
   const heightValue = Number(gridHeightSizeInput.value);
   const lineWidth = Number(gridLineWidthInput.value);
@@ -664,9 +737,35 @@ function getGridSettings() {
   if (!Number.isFinite(heightValue) || heightValue <= 0) return null;
 
   return {
+    widthValue,
+    widthUnit: gridWidthUnitInput.value,
+    heightValue,
+    heightUnit: gridHeightUnitInput.value,
     widthMeters: gridWidthUnitInput.value === "cm" ? widthValue / 100 : widthValue,
     heightMeters: gridHeightUnitInput.value === "cm" ? heightValue / 100 : heightValue,
     color: gridColorInput.value || "#777777",
+    lineWidth: Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth : 2,
+    opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0.1, opacity)) : 0.55
+  };
+}
+
+function getRoomGridSettings(room) {
+  const widthValue = Number(room.grid.widthValue);
+  const heightValue = Number(room.grid.heightValue);
+  const lineWidth = Number(room.grid.lineWidth);
+  const opacity = Number(room.grid.opacity);
+
+  if (!Number.isFinite(widthValue) || widthValue <= 0) return null;
+  if (!Number.isFinite(heightValue) || heightValue <= 0) return null;
+
+  return {
+    widthValue,
+    widthUnit: room.grid.widthUnit,
+    heightValue,
+    heightUnit: room.grid.heightUnit,
+    widthMeters: room.grid.widthUnit === "cm" ? widthValue / 100 : widthValue,
+    heightMeters: room.grid.heightUnit === "cm" ? heightValue / 100 : heightValue,
+    color: room.grid.color || "#777777",
     lineWidth: Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth : 2,
     opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0.1, opacity)) : 0.55
   };
@@ -680,7 +779,7 @@ function getRoomGridOrigin(room) {
   return getBoundsCenter(room.points);
 }
 
-function makeResultImage(grid) {
+function makeResultImage() {
   const out = document.createElement("canvas");
   out.width = img.naturalWidth;
   out.height = img.naturalHeight;
@@ -689,11 +788,13 @@ function makeResultImage(grid) {
   outCtx.drawImage(img, 0, 0);
 
   for (const room of rooms) {
-    drawGridInRoom(outCtx, room, grid);
+    const grid = getRoomGridSettings(room);
+    if (grid) drawGridInRoom(outCtx, room, grid);
   }
 
   for (const room of rooms) {
-    if (room.labels.enabled) {
+    const grid = getRoomGridSettings(room);
+    if (grid && room.labels.enabled) {
       drawLabelsInRoom(outCtx, room, grid);
     }
   }
@@ -756,8 +857,6 @@ function drawLabelsInRoom(outCtx, room, grid) {
 
   outCtx.fillStyle = color;
   outCtx.font = `${fontWeight} ${fontSize}px Arial`;
-  outCtx.textAlign = "center";
-  outCtx.textBaseline = "middle";
 
   let number = start;
 
@@ -910,7 +1009,7 @@ function updateStatus(message) {
     : `Skala: ${scalePoints.length}/2 punkty`;
 
   statusGrid.textContent =
-    `Siatka: ${gridWidthSizeInput.value || "?"} ${gridWidthUnitInput.value} × ${gridHeightSizeInput.value || "?"} ${gridHeightUnitInput.value}`;
+    `Domyślna siatka: ${gridWidthSizeInput.value || "?"} ${gridWidthUnitInput.value} × ${gridHeightSizeInput.value || "?"} ${gridHeightUnitInput.value}`;
 
   statusRooms.textContent = `Pomieszczenia: ${rooms.length}`;
 

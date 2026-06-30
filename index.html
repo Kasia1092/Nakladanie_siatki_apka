@@ -10,6 +10,7 @@
   <main class="app">
     <header>
       <h1>Apka do nakładania siatki na JPG/PNG</h1>
+      <div class="versionBadge">WERSJA 5 — osobne ustawienia siatki i numerów dla każdego pomieszczenia</div>
       <p>Wgraj zdjęcie, ustaw skalę, zaznacz pomieszczenia i pobierz gotowy obraz z siatką.</p>
     </header>
 
@@ -51,8 +52,8 @@
       </div>
 
       <div class="step wide">
-        <h2>5. Ustaw siatkę</h2>
-        <p>Tu wybierasz wielkość kratki, kolor, grubość i widoczność linii.</p>
+        <h2>5. Domyślna siatka</h2>
+        <p>Te ustawienia będą kopiowane do nowego pomieszczenia. Potem możesz je zmienić osobno w panelu pomieszczeń.</p>
 
         <label class="miniLabel">Szerokość kratki</label>
         <div class="line">
@@ -95,14 +96,14 @@
     <section class="info">
       <span id="statusImage">Brak obrazu</span>
       <span id="statusScale">Skala: nieustawiona</span>
-      <span id="statusGrid">Siatka: 100 × 100 cm</span>
+      <span id="statusGrid">Domyślna siatka: 100 × 100 cm</span>
       <span id="statusRooms">Pomieszczenia: 0</span>
       <span id="statusMode">Teraz: wgraj zdjęcie</span>
     </section>
 
     <section id="roomSettings" class="roomSettings">
-      <h2>7. Ustawienia osobno dla każdego pomieszczenia</h2>
-      <p>Tu ustawisz wyśrodkowanie siatki i numerację kratek osobno dla każdego zaznaczonego pomieszczenia. Opcje dla pomieszczenia pojawią się po kliknięciu „Zamknij pomieszczenie”.</p>
+      <h2>7. Opcje pomieszczeń: siatka, centrowanie i numeracja</h2>
+      <p>Po zamknięciu pomieszczenia pojawią się tu jego osobne ustawienia: wymiar kratki, kolor, grubość, centrowanie, prefix i wygląd numerów.</p>
       <div id="roomsPanel" class="roomsPanel"></div>
     </section>
 

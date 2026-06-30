@@ -41,6 +41,18 @@ h1 {
   font-size: 28px;
 }
 
+.versionBadge {
+  display: inline-block;
+  margin: 2px 0 8px;
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #e8f5e9;
+  border: 1px solid #9fd2a4;
+  color: #245c2a;
+  font-weight: 700;
+  font-size: 14px;
+}
+
 header p,
 .step p,
 .preview p,
@@ -80,10 +92,21 @@ header p,
 }
 
 .step h2,
-.roomSettings h2,
 .preview h2 {
   margin: 0 0 8px;
   font-size: 17px;
+}
+
+.roomSettings {
+  margin-bottom: 12px;
+  border: 3px solid #7abf7f;
+  background: #f7fff7;
+}
+
+.roomSettings h2 {
+  color: #245c2a;
+  font-size: 20px;
+  margin: 0 0 8px;
 }
 
 button,
@@ -186,10 +209,6 @@ input[type="range"] {
   font-size: 14px;
 }
 
-.roomSettings {
-  margin-bottom: 12px;
-}
-
 .roomsPanel {
   display: grid;
   grid-template-columns: repeat(2, minmax(280px, 1fr));
@@ -204,6 +223,12 @@ input[type="range"] {
   padding: 12px;
 }
 
+.emptyRoomCard {
+  grid-column: 1 / -1;
+  background: #fffdf6;
+  border-color: #eadcaa;
+}
+
 .roomCard h3 {
   margin: 0 0 6px;
   font-size: 17px;
@@ -213,6 +238,19 @@ input[type="range"] {
   color: var(--muted);
   font-size: 13px;
   margin: 0 0 8px;
+}
+
+.subBox {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.subBox h4 {
+  margin: 0 0 6px;
+  font-size: 15px;
 }
 
 .roomGrid {
@@ -318,11 +356,4 @@ input[type="range"] {
     height: 62vh;
     min-height: 420px;
   }
-}
-
-
-.emptyRoomCard {
-  grid-column: 1 / -1;
-  background: #fffdf6;
-  border-color: #eadcaa;
 }
