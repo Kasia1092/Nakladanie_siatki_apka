@@ -10,7 +10,6 @@
   <main class="app">
     <header>
       <h1>Apka do nakładania siatki na JPG/PNG</h1>
-      <div class="versionBadge">WERSJA 7 — obszary, własne siatki i zaawansowana numeracja</div>
       <p>Wgraj zdjęcie, ustaw skalę, zaznacz obszary i pobierz gotowy obraz z siatką.</p>
     </header>
 
@@ -43,11 +42,11 @@
       </div>
 
       <div class="step">
-        <h2>4. Zaznacz obszaru</h2>
+        <h2>4. Zaznacz obszar</h2>
         <p>Klikaj po kolei wszystkie narożniki obszaru lub korytarza. Gdy zaznaczysz wszystkie narożniki, kliknij „Zamknij obszar”.</p>
         <button id="closeRoomBtn">Zamknij obszar</button>
         <button id="undoPointBtn" class="light">Cofnij ostatnie kliknięcie</button>
-        <button id="deleteRoomBtn" class="light">Usuń ostatnie obszar</button>
+        <button id="deleteRoomBtn" class="light">Usuń ostatni obszar</button>
         <button id="clearAllBtn" class="light dangerText">Wyczyść wszystko</button>
       </div>
 
@@ -72,8 +71,15 @@
 
     <section id="roomSettings" class="roomSettings">
       <h2>Ustawienia obszarów</h2>
-      <p>Każde obszar ma własną siatkę i własną numerację. Zmiana w jednej karcie nie zmienia pozostałych obszarów.</p>
+      <p>Każdy obszar ma własną siatkę i własną numerację. Zmiana w jednej karcie nie zmienia pozostałych obszarów.</p>
       <div id="roomsPanel" class="roomsPanel"></div>
+    </section>
+
+    <section class="viewTools">
+      <button id="zoomOutBtn" class="light" type="button">− Pomniejsz</button>
+      <button id="fitViewBtn" class="light" type="button">Dopasuj widok</button>
+      <button id="zoomInBtn" class="light" type="button">+ Powiększ</button>
+      <button id="panModeBtn" class="light" type="button">Przesuń widok: wyłączone</button>
     </section>
 
     <section class="work">

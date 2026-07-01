@@ -358,3 +358,35 @@ input[type="range"] {
   color: white !important;
   border-color: #8d4800 !important;
 }
+
+
+.viewTools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.viewTools button {
+  margin-top: 0;
+}
+
+.panActive {
+  background: #245c2a !important;
+  color: white !important;
+  border-color: #245c2a !important;
+}
+
+#editCanvas.panMode {
+  cursor: grab;
+}
+
+#editCanvas.panning {
+  cursor: grabbing;
+}
+
+@media (max-width: 700px) {
+  .viewTools {
+    grid-template-columns: 1fr 1fr;
+  }
+}

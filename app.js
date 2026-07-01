@@ -23,6 +23,11 @@ const placeholder = document.getElementById("placeholder");
 const previewSection = document.getElementById("previewSection");
 const previewImage = document.getElementById("previewImage");
 
+const zoomOutBtn = document.getElementById("zoomOutBtn");
+const zoomInBtn = document.getElementById("zoomInBtn");
+const fitViewBtn = document.getElementById("fitViewBtn");
+const panModeBtn = document.getElementById("panModeBtn");
+
 const roomsPanel = document.getElementById("roomsPanel");
 
 let img = null;
@@ -38,10 +43,15 @@ let rooms = [];
 let resultDataUrl = null;
 let manualCenterRoomIndex = null;
 let cellEditMode = null;
+let view = { zoom: 1, panX: 0, panY: 0 };
+let isPanMode = false;
+let isPanning = false;
+let lastPanPoint = null;
+let suppressNextClick = false;
 
-const POINT_COLOR = "rgba(180, 60, 30, 0.95)";
+const POINT_COLOR = "rgba(255, 0, 0, 0.95)";
 const ROOM_COLOR = "rgba(80, 80, 80, 0.9)";
-const SCALE_COLOR = "rgba(180, 40, 40, 0.95)";
+const SCALE_COLOR = "rgba(255, 0, 0, 0.95)";
 const CENTER_COLOR = "rgba(30, 120, 75, 0.95)";
 
 function setupCanvasSize() {
@@ -57,6 +67,53 @@ function setupCanvasSize() {
 
 window.addEventListener("resize", setupCanvasSize);
 setupCanvasSize();
+
+zoomInBtn.addEventListener("click", () => setZoom(view.zoom * 1.25));
+zoomOutBtn.addEventListener("click", () => setZoom(view.zoom / 1.25));
+fitViewBtn.addEventListener("click", () => resetView());
+panModeBtn.addEventListener("click", () => togglePanMode());
+
+editCanvas.addEventListener("pointerdown", (event) => {
+  if (!img || !isPanMode) return;
+
+  isPanning = true;
+  lastPanPoint = { x: event.clientX, y: event.clientY };
+  suppressNextClick = true;
+
+  editCanvas.classList.add("panning");
+  editCanvas.setPointerCapture(event.pointerId);
+});
+
+editCanvas.addEventListener("pointermove", (event) => {
+  if (!isPanning || !lastPanPoint) return;
+
+  const dx = event.clientX - lastPanPoint.x;
+  const dy = event.clientY - lastPanPoint.y;
+
+  view.panX += dx;
+  view.panY += dy;
+
+  lastPanPoint = { x: event.clientX, y: event.clientY };
+  draw();
+});
+
+editCanvas.addEventListener("pointerup", (event) => {
+  if (!isPanning) return;
+
+  isPanning = false;
+  lastPanPoint = null;
+  editCanvas.classList.remove("panning");
+
+  try {
+    editCanvas.releasePointerCapture(event.pointerId);
+  } catch (error) {}
+});
+
+editCanvas.addEventListener("pointercancel", () => {
+  isPanning = false;
+  lastPanPoint = null;
+  editCanvas.classList.remove("panning");
+});
 
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files[0];
@@ -76,6 +133,7 @@ fileInput.addEventListener("change", async () => {
     resultDataUrl = null;
     manualCenterRoomIndex = null;
     cellEditMode = null;
+    resetView(false);
 
     placeholder.classList.add("hidden");
     placeholder.style.display = "none";
@@ -100,6 +158,12 @@ function readFileAsDataUrl(file) {
 }
 
 editCanvas.addEventListener("click", (event) => {
+  if (suppressNextClick) {
+    suppressNextClick = false;
+    return;
+  }
+
+  if (isPanMode) return;
   if (!img || !drawBox) return;
 
   const point = getImagePoint(event);
@@ -302,7 +366,7 @@ function createRoom(points, index) {
       widthUnit: "cm",
       heightValue: 100,
       heightUnit: "cm",
-      color: "#777777",
+      color: "#ff0000",
       lineWidth: 2,
       opacity: 0.55
     },
@@ -315,7 +379,7 @@ function createRoom(points, index) {
       numberDigits: 1,
       suffixSeparator: " ",
       suffix: "",
-      color: "#111111",
+      color: "#ff0000",
       opacity: 0.9,
       size: 22,
       bold: true,
@@ -354,22 +418,75 @@ function draw() {
 
 function getDrawBox(canvasW, canvasH, imageW, imageH) {
   const margin = 12;
-  const scale = Math.min(
+  const fitScale = Math.min(
     (canvasW - margin * 2) / imageW,
     (canvasH - margin * 2) / imageH
   );
 
+  const scale = fitScale * view.zoom;
   const w = imageW * scale;
   const h = imageH * scale;
 
   return {
-    x: (canvasW - w) / 2,
-    y: (canvasH - h) / 2,
+    x: (canvasW - w) / 2 + view.panX,
+    y: (canvasH - h) / 2 + view.panY,
     w,
     h,
-    scale
+    scale,
+    fitScale
   };
 }
+
+function setZoom(newZoom) {
+  if (!img) return;
+
+  const rect = editCanvas.getBoundingClientRect();
+  const centerCanvas = { x: rect.width / 2, y: rect.height / 2 };
+
+  const beforeBox = getDrawBox(rect.width, rect.height, img.naturalWidth, img.naturalHeight);
+  const imageCenterBefore = {
+    x: (centerCanvas.x - beforeBox.x) / beforeBox.scale,
+    y: (centerCanvas.y - beforeBox.y) / beforeBox.scale
+  };
+
+  view.zoom = Math.min(8, Math.max(0.25, newZoom));
+
+  const afterBox = getDrawBox(rect.width, rect.height, img.naturalWidth, img.naturalHeight);
+
+  view.panX += centerCanvas.x - (afterBox.x + imageCenterBefore.x * afterBox.scale);
+  view.panY += centerCanvas.y - (afterBox.y + imageCenterBefore.y * afterBox.scale);
+
+  draw();
+}
+
+function resetView(shouldDraw = true) {
+  view.zoom = 1;
+  view.panX = 0;
+  view.panY = 0;
+
+  if (shouldDraw) draw();
+}
+
+function togglePanMode() {
+  isPanMode = !isPanMode;
+
+  if (isPanMode) {
+    manualCenterRoomIndex = null;
+    cellEditMode = null;
+  }
+
+  updatePanModeButton();
+  updateRoomsPanel();
+  updateStatus(isPanMode ? "Tryb przesuwania widoku włączony." : "Tryb przesuwania widoku wyłączony.");
+  draw();
+}
+
+function updatePanModeButton() {
+  panModeBtn.textContent = isPanMode ? "Przesuń widok: włączone" : "Przesuń widok: wyłączone";
+  panModeBtn.classList.toggle("panActive", isPanMode);
+  editCanvas.classList.toggle("panMode", isPanMode);
+}
+
 
 function getImagePoint(event) {
   const rect = editCanvas.getBoundingClientRect();
@@ -520,9 +637,14 @@ function drawClosedPath(points) {
 }
 
 function drawDot(point, radius) {
+  const size = Math.max(8, radius * 2.4);
+
   ctx.beginPath();
-  ctx.arc(point.x, point.y, radius, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.moveTo(point.x - size, point.y);
+  ctx.lineTo(point.x + size, point.y);
+  ctx.moveTo(point.x, point.y - size);
+  ctx.lineTo(point.x, point.y + size);
+  ctx.stroke();
 }
 
 function updateRoomsPanel() {
