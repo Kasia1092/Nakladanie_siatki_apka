@@ -43,7 +43,7 @@ h1 {
   font-size: 28px;
 }
 
-.versionBadge {
+.oldVersionBadge {
   display: inline-block;
   margin: 2px 0 8px;
   padding: 9px 12px;
@@ -361,14 +361,19 @@ input[type="range"] {
 
 
 .viewTools {
+  position: relative;
+  z-index: 5;
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr));
   gap: 8px;
   margin-bottom: 12px;
+  pointer-events: auto;
 }
 
 .viewTools button {
   margin-top: 0;
+  font-size: 15px;
+  line-height: 1.2;
 }
 
 .panActive {

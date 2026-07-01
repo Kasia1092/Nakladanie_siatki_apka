@@ -68,14 +68,30 @@ function setupCanvasSize() {
 window.addEventListener("resize", setupCanvasSize);
 setupCanvasSize();
 
-zoomInBtn.addEventListener("click", () => setZoom(view.zoom * 1.25));
-zoomOutBtn.addEventListener("click", () => setZoom(view.zoom / 1.25));
-fitViewBtn.addEventListener("click", () => resetView());
-panModeBtn.addEventListener("click", () => togglePanMode());
+zoomInBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  setZoom(view.zoom * 1.25);
+});
+
+zoomOutBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  setZoom(view.zoom / 1.25);
+});
+
+fitViewBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  resetView();
+});
+
+panModeBtn.addEventListener("click", (event) => {
+  event.preventDefault();
+  togglePanMode();
+});
 
 editCanvas.addEventListener("pointerdown", (event) => {
   if (!img || !isPanMode) return;
 
+  event.preventDefault();
   isPanning = true;
   lastPanPoint = { x: event.clientX, y: event.clientY };
   suppressNextClick = true;
@@ -86,6 +102,8 @@ editCanvas.addEventListener("pointerdown", (event) => {
 
 editCanvas.addEventListener("pointermove", (event) => {
   if (!isPanning || !lastPanPoint) return;
+
+  event.preventDefault();
 
   const dx = event.clientX - lastPanPoint.x;
   const dy = event.clientY - lastPanPoint.y;
@@ -100,6 +118,7 @@ editCanvas.addEventListener("pointermove", (event) => {
 editCanvas.addEventListener("pointerup", (event) => {
   if (!isPanning) return;
 
+  event.preventDefault();
   isPanning = false;
   lastPanPoint = null;
   editCanvas.classList.remove("panning");
@@ -449,7 +468,7 @@ function setZoom(newZoom) {
     y: (centerCanvas.y - beforeBox.y) / beforeBox.scale
   };
 
-  view.zoom = Math.min(8, Math.max(0.25, newZoom));
+  view.zoom = Math.min(10, Math.max(0.25, newZoom));
 
   const afterBox = getDrawBox(rect.width, rect.height, img.naturalWidth, img.naturalHeight);
 
@@ -550,29 +569,11 @@ function drawSavedRooms() {
 function drawRoomCenters() {
   if (!rooms.length) return;
 
-  ctx.save();
-  ctx.fillStyle = CENTER_COLOR;
-  ctx.strokeStyle = "white";
-  ctx.lineWidth = 2;
-
   rooms.forEach((room) => {
     const origin = getRoomGridOrigin(room);
     const pt = toCanvasPoint(origin);
-
-    ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(pt.x - 10, pt.y);
-    ctx.lineTo(pt.x + 10, pt.y);
-    ctx.moveTo(pt.x, pt.y - 10);
-    ctx.lineTo(pt.x, pt.y + 10);
-    ctx.stroke();
+    drawPlusMarker(pt, CENTER_COLOR, 7);
   });
-
-  ctx.restore();
 }
 
 function drawCurrentRoom() {
@@ -637,14 +638,20 @@ function drawClosedPath(points) {
 }
 
 function drawDot(point, radius) {
-  const size = Math.max(8, radius * 2.4);
+  drawPlusMarker(point, POINT_COLOR, 5);
+}
 
+function drawPlusMarker(point, color, size = 5) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(point.x - size, point.y);
   ctx.lineTo(point.x + size, point.y);
   ctx.moveTo(point.x, point.y - size);
   ctx.lineTo(point.x, point.y + size);
   ctx.stroke();
+  ctx.restore();
 }
 
 function updateRoomsPanel() {
@@ -692,7 +699,7 @@ function updateRoomsPanel() {
 
           <label class="miniLabel">Kolor siatki</label>
           <label class="miniLabel">Grubość linii</label>
-          <input type="color" data-group="grid" data-field="color" value="${room.grid.color}">
+          <input type="color" data-group="grid" data-field="color" value="${room.grid.color || "#ff0000"}">
           <input type="number" data-group="grid" data-field="lineWidth" min="1" max="10" step="1" value="${room.grid.lineWidth}">
 
           <label class="miniLabel full">Transparentność siatki</label>
@@ -783,7 +790,7 @@ function updateRoomsPanel() {
           <label class="miniLabel">Rozmiar</label>
           <label class="miniLabel">Kolor</label>
           <input type="number" data-group="labels" data-field="size" min="6" max="200" step="1" value="${room.labels.size}">
-          <input type="color" data-group="labels" data-field="color" value="${room.labels.color}">
+          <input type="color" data-group="labels" data-field="color" value="${room.labels.color || "#ff0000"}">
 
           <label class="miniLabel">Transparentność</label>
           <label class="miniLabel">Pogrubienie</label>
@@ -872,7 +879,7 @@ function updateRoomFromInput(room, input) {
     if (field === "widthUnit") room.grid.widthUnit = input.value;
     if (field === "heightValue") room.grid.heightValue = Number(input.value) || 0;
     if (field === "heightUnit") room.grid.heightUnit = input.value;
-    if (field === "color") room.grid.color = input.value || "#777777";
+    if (field === "color") room.grid.color = input.value || "#ff0000";
     if (field === "lineWidth") room.grid.lineWidth = Number(input.value) || 2;
     if (field === "opacity") room.grid.opacity = Number(input.value) || 0.55;
     room.cellOverrides = {};
@@ -893,7 +900,7 @@ function updateRoomFromInput(room, input) {
     if (field === "snake") room.labels.snake = input.checked;
     if (field === "skipMode") room.labels.skipMode = input.value;
     if (field === "size") room.labels.size = Number(input.value) || 22;
-    if (field === "color") room.labels.color = input.value || "#111111";
+    if (field === "color") room.labels.color = input.value || "#ff0000";
     if (field === "opacity") room.labels.opacity = Number(input.value) || 0.9;
     if (field === "bold") room.labels.bold = input.checked;
   }
@@ -924,7 +931,7 @@ function getRoomGridSettings(room) {
     heightUnit: room.grid.heightUnit,
     widthMeters: room.grid.widthUnit === "cm" ? widthValue / 100 : widthValue,
     heightMeters: room.grid.heightUnit === "cm" ? heightValue / 100 : heightValue,
-    color: room.grid.color || "#777777",
+    color: room.grid.color || "#ff0000",
     lineWidth: Number.isFinite(lineWidth) && lineWidth > 0 ? lineWidth : 2,
     opacity: Number.isFinite(opacity) ? Math.min(1, Math.max(0.1, opacity)) : 0.55
   };
