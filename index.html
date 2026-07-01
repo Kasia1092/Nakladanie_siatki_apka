@@ -69,6 +69,20 @@
       <span id="statusMode">Teraz: wgraj zdjęcie</span>
     </section>
 
+    <section class="presetSettings">
+      <h2>Domyślne ustawienia dla nowych obszarów</h2>
+      <p>Nowy obszar tworzy się z aktualnych ustawień domyślnych. Możesz ustawić je z dowolnego obszaru albo przenieść między laptopami plikiem JSON.</p>
+      <div class="presetButtons">
+        <button id="savePresetFileBtn" class="light" type="button">Zapisz domyślne do pliku</button>
+        <label class="button light importButton">
+          Wczytaj domyślne z pliku
+          <input id="loadPresetFileInput" type="file" accept="application/json,.json" />
+        </label>
+        <button id="resetPresetBtn" class="light dangerText" type="button">Wyczyść domyślne</button>
+      </div>
+      <p id="presetStatus" class="presetStatus">Domyślne ustawienia: czerwone, kratka 100 × 100 cm.</p>
+    </section>
+
     <section id="roomSettings" class="roomSettings">
       <h2>Ustawienia obszarów</h2>
       <p>Każdy obszar ma własną siatkę i własną numerację. Zmiana w jednej karcie nie zmienia pozostałych obszarów.</p>

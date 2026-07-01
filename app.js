@@ -28,6 +28,11 @@ const zoomInBtn = document.getElementById("zoomInBtn");
 const fitViewBtn = document.getElementById("fitViewBtn");
 const panModeBtn = document.getElementById("panModeBtn");
 
+const savePresetFileBtn = document.getElementById("savePresetFileBtn");
+const loadPresetFileInput = document.getElementById("loadPresetFileInput");
+const resetPresetBtn = document.getElementById("resetPresetBtn");
+const presetStatus = document.getElementById("presetStatus");
+
 const roomsPanel = document.getElementById("roomsPanel");
 
 let img = null;
@@ -42,12 +47,47 @@ let rooms = [];
 
 let resultDataUrl = null;
 let manualCenterRoomIndex = null;
+let manualCenterAnchor = "cellCenter";
 let cellEditMode = null;
 let view = { zoom: 1, panX: 0, panY: 0 };
 let isPanMode = false;
 let isPanning = false;
 let lastPanPoint = null;
 let suppressNextClick = false;
+
+const FACTORY_DEFAULT_AREA_SETTINGS = {
+  gridOriginMode: "center",
+  gridAnchor: "cellCenter",
+  grid: {
+    widthValue: 100,
+    widthUnit: "cm",
+    heightValue: 100,
+    heightUnit: "cm",
+    color: "#ff0000",
+    lineWidth: 2,
+    opacity: 0.55
+  },
+  labels: {
+    enabled: false,
+    prefix: "P",
+    separator: "",
+    start: 1,
+    end: "",
+    numberDigits: 1,
+    suffixSeparator: " ",
+    suffix: "",
+    color: "#ff0000",
+    opacity: 0.9,
+    size: 22,
+    bold: true,
+    position: "center",
+    direction: "left-right-down",
+    snake: false,
+    skipMode: "compact"
+  }
+};
+
+let defaultAreaSettings = cloneSettings(FACTORY_DEFAULT_AREA_SETTINGS);
 
 const POINT_COLOR = "rgba(255, 0, 0, 0.95)";
 const ROOM_COLOR = "rgba(80, 80, 80, 0.9)";
@@ -134,6 +174,33 @@ editCanvas.addEventListener("pointercancel", () => {
   editCanvas.classList.remove("panning");
 });
 
+savePresetFileBtn.addEventListener("click", () => {
+  downloadDefaultSettingsFile();
+});
+
+loadPresetFileInput.addEventListener("change", async () => {
+  const file = loadPresetFileInput.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    defaultAreaSettings = normalizeSettingsFromFile(data);
+    updatePresetStatus("Wczytano domyślne ustawienia z pliku.");
+  } catch (error) {
+    alert("Nie udało się wczytać ustawień. Sprawdź, czy to właściwy plik JSON.");
+  }
+
+  loadPresetFileInput.value = "";
+});
+
+resetPresetBtn.addEventListener("click", () => {
+  if (!confirm("Wyczyścić domyślne ustawienia i wrócić do czerwonej siatki 100 × 100 cm?")) return;
+
+  defaultAreaSettings = cloneSettings(FACTORY_DEFAULT_AREA_SETTINGS);
+  updatePresetStatus("Wyczyszczono domyślne ustawienia.");
+});
+
 fileInput.addEventListener("change", async () => {
   const file = fileInput.files[0];
   if (!file) return;
@@ -151,6 +218,7 @@ fileInput.addEventListener("change", async () => {
     rooms = [];
     resultDataUrl = null;
     manualCenterRoomIndex = null;
+    manualCenterAnchor = "cellCenter";
     cellEditMode = null;
     resetView(false);
 
@@ -176,6 +244,23 @@ function readFileAsDataUrl(file) {
   });
 }
 
+editCanvas.addEventListener("contextmenu", (event) => {
+  if (!img || !drawBox) return;
+
+  event.preventDefault();
+
+  if (isPanMode) return;
+  if (manualCenterRoomIndex !== null) return;
+  if (cellEditMode !== null) return;
+  if (pxPerMeter === null) return;
+
+  if (currentRoom.length >= 3) {
+    closeCurrentRoom();
+  } else if (currentRoom.length > 0) {
+    updateStatus("Żeby zamknąć obszar prawym przyciskiem, zaznacz minimum 3 narożniki.");
+  }
+});
+
 editCanvas.addEventListener("click", (event) => {
   if (suppressNextClick) {
     suppressNextClick = false;
@@ -191,7 +276,9 @@ editCanvas.addEventListener("click", (event) => {
   if (manualCenterRoomIndex !== null) {
     if (rooms[manualCenterRoomIndex]) {
       rooms[manualCenterRoomIndex].gridOriginMode = "manual";
+      rooms[manualCenterRoomIndex].gridAnchor = manualCenterAnchor;
       rooms[manualCenterRoomIndex].manualCenter = point;
+      rooms[manualCenterRoomIndex].cellOverrides = {};
       manualCenterRoomIndex = null;
       clearResult();
       updateRoomsPanel();
@@ -263,6 +350,7 @@ clearScaleBtn.addEventListener("click", () => {
   currentRoom = [];
   rooms = [];
   manualCenterRoomIndex = null;
+  manualCenterAnchor = "cellCenter";
   cellEditMode = null;
   clearResult();
   updateRoomsPanel();
@@ -270,7 +358,8 @@ clearScaleBtn.addEventListener("click", () => {
   draw();
 });
 
-closeRoomBtn.addEventListener("click", () => {
+
+function closeCurrentRoom() {
   if (!img) {
     alert("Najpierw wgraj obraz.");
     return;
@@ -289,12 +378,17 @@ closeRoomBtn.addEventListener("click", () => {
   rooms.push(createRoom(currentRoom, rooms.length));
   currentRoom = [];
   manualCenterRoomIndex = null;
+  manualCenterAnchor = "cellCenter";
   cellEditMode = null;
 
   clearResult();
   updateRoomsPanel();
   updateStatus("Obszar zapisany. Możesz zaznaczyć kolejny.");
   draw();
+}
+
+closeRoomBtn.addEventListener("click", () => {
+  closeCurrentRoom();
 });
 
 undoPointBtn.addEventListener("click", () => {
@@ -312,6 +406,7 @@ undoPointBtn.addEventListener("click", () => {
 deleteRoomBtn.addEventListener("click", () => {
   rooms.pop();
   manualCenterRoomIndex = null;
+  manualCenterAnchor = "cellCenter";
   cellEditMode = null;
   clearResult();
   updateRoomsPanel();
@@ -327,6 +422,7 @@ clearAllBtn.addEventListener("click", () => {
   currentRoom = [];
   rooms = [];
   manualCenterRoomIndex = null;
+  manualCenterAnchor = "cellCenter";
   cellEditMode = null;
 
   clearResult();
@@ -376,42 +472,18 @@ downloadBtn.addEventListener("click", () => {
 });
 
 function createRoom(points, index) {
+  const settings = cloneSettings(defaultAreaSettings);
+
   return {
     points: points.map(p => ({ x: p.x, y: p.y })),
-    gridOriginMode: "center",
+    gridOriginMode: settings.gridOriginMode || "center",
+    gridAnchor: settings.gridAnchor || "cellCenter",
     manualCenter: null,
-    grid: {
-      widthValue: 100,
-      widthUnit: "cm",
-      heightValue: 100,
-      heightUnit: "cm",
-      color: "#ff0000",
-      lineWidth: 2,
-      opacity: 0.55
-    },
-    labels: {
-      enabled: false,
-      prefix: "P",
-      separator: "",
-      start: 1,
-      end: "",
-      numberDigits: 1,
-      suffixSeparator: " ",
-      suffix: "",
-      color: "#ff0000",
-      opacity: 0.9,
-      size: 22,
-      bold: true,
-      position: "center",
-      direction: "left-right-down",
-      snake: false,
-      skipMode: "compact"
-    },
+    grid: cloneSettings(settings.grid),
+    labels: cloneSettings(settings.labels),
     cellOverrides: {}
   };
 }
-
-
 
 function clearResult() {
   resultDataUrl = null;
@@ -491,6 +563,7 @@ function togglePanMode() {
 
   if (isPanMode) {
     manualCenterRoomIndex = null;
+    manualCenterAnchor = "cellCenter";
     cellEditMode = null;
   }
 
@@ -673,10 +746,19 @@ function updateRoomsPanel() {
 
     const countText = getEstimatedLabelCount(room);
     const overrideCount = Object.keys(room.cellOverrides || {}).length;
+    const anchorText = (room.gridAnchor || "cellCenter") === "intersection" ? "przecięcie linii na środku" : "środek kratki na środku";
 
     card.innerHTML = `
       <h3>Obszar ${index + 1}</h3>
-      <p class="small">${countText}. Ręcznie zmienione kratki: ${overrideCount}</p>
+      <p class="small">${countText}. Ustawienie: ${anchorText}. Ręcznie zmienione kratki: ${overrideCount}</p>
+
+      <div class="subBox">
+        <h4>Domyślne ustawienia</h4>
+        <div class="roomGrid">
+          <button class="light full" data-action="setDefaultsFromArea">Ustaw ten obszar jako domyślny</button>
+          <button class="light full" data-action="applyDefaultsToArea">Zastosuj domyślne do tego obszaru</button>
+        </div>
+      </div>
 
       <div class="subBox">
         <h4>Siatka tylko dla obszaru ${index + 1}</h4>
@@ -708,11 +790,13 @@ function updateRoomsPanel() {
       </div>
 
       <div class="subBox">
-        <h4>Środek kratki dla obszaru ${index + 1}</h4>
+        <h4>Ustawienie siatki na środku obszaru ${index + 1}</h4>
         <div class="roomGrid">
-          <button class="light full" data-action="autoCenter">Wyśrodkuj automatycznie</button>
-          <button class="light full" data-action="manualCenter">Ustaw środek ręcznie</button>
-          ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki w tym obszarze.</div>' : ''}
+          <button class="light full" data-action="autoCellCenter">Auto: środek kratki na środku obszaru</button>
+          <button class="light full" data-action="autoIntersection">Auto: przecięcie linii na środku obszaru</button>
+          <button class="light full" data-action="manualCellCenter">Ręcznie: ustaw środek kratki</button>
+          <button class="light full" data-action="manualIntersection">Ręcznie: ustaw przecięcie linii</button>
+          ${manualCenterRoomIndex === index ? '<div class="manualNotice full">Kliknij na obrazie punkt, który ma być środkiem kratki albo przecięciem linii w tym obszarze.</div>' : ''}
         </div>
       </div>
 
@@ -814,21 +898,68 @@ function updateRoomsPanel() {
       </div>
     `;
 
-    card.querySelector('[data-action="autoCenter"]').addEventListener("click", () => {
-      room.gridOriginMode = "center";
-      room.manualCenter = null;
+    card.querySelector('[data-action="setDefaultsFromArea"]').addEventListener("click", () => {
+      if (!confirm(`Ustawić ustawienia Obszaru ${index + 1} jako domyślne dla nowych obszarów?`)) return;
+
+      defaultAreaSettings = getSettingsFromRoom(room);
+      updatePresetStatus(`Ustawienia Obszaru ${index + 1} są teraz domyślne.`);
+    });
+
+    card.querySelector('[data-action="applyDefaultsToArea"]').addEventListener("click", () => {
+      if (!confirm(`Zastosować domyślne ustawienia do Obszaru ${index + 1}? Ręczne zmiany kratek w tym obszarze zostaną wyczyszczone.`)) return;
+
+      applySettingsToRoom(room, defaultAreaSettings);
+      room.cellOverrides = {};
       manualCenterRoomIndex = null;
+      manualCenterAnchor = "cellCenter";
+      cellEditMode = null;
       clearResult();
       updateRoomsPanel();
-      updateStatus(`Obszar ${index + 1}: siatka wyśrodkowana automatycznie.`);
+      updateStatus(`Zastosowano domyślne ustawienia do Obszaru ${index + 1}.`);
       draw();
     });
 
-    card.querySelector('[data-action="manualCenter"]').addEventListener("click", () => {
+    card.querySelector('[data-action="autoCellCenter"]').addEventListener("click", () => {
+      room.gridOriginMode = "center";
+      room.gridAnchor = "cellCenter";
+      room.manualCenter = null;
+      room.cellOverrides = {};
+      manualCenterRoomIndex = null;
+      manualCenterAnchor = "cellCenter";
+      clearResult();
+      updateRoomsPanel();
+      updateStatus(`Obszar ${index + 1}: środek kratki ustawiony na środku obszaru.`);
+      draw();
+    });
+
+    card.querySelector('[data-action="autoIntersection"]').addEventListener("click", () => {
+      room.gridOriginMode = "center";
+      room.gridAnchor = "intersection";
+      room.manualCenter = null;
+      room.cellOverrides = {};
+      manualCenterRoomIndex = null;
+      manualCenterAnchor = "intersection";
+      clearResult();
+      updateRoomsPanel();
+      updateStatus(`Obszar ${index + 1}: przecięcie linii ustawione na środku obszaru.`);
+      draw();
+    });
+
+    card.querySelector('[data-action="manualCellCenter"]').addEventListener("click", () => {
       manualCenterRoomIndex = index;
+      manualCenterAnchor = "cellCenter";
       cellEditMode = null;
       updateRoomsPanel();
       updateStatus(`Kliknij na obrazie środek kratki dla obszaru ${index + 1}.`);
+      draw();
+    });
+
+    card.querySelector('[data-action="manualIntersection"]').addEventListener("click", () => {
+      manualCenterRoomIndex = index;
+      manualCenterAnchor = "intersection";
+      cellEditMode = null;
+      updateRoomsPanel();
+      updateStatus(`Kliknij na obrazie punkt przecięcia linii dla obszaru ${index + 1}.`);
       draw();
     });
 
@@ -978,6 +1109,7 @@ function drawGridInRoom(outCtx, room, grid) {
 
   const bounds = getBounds(room.points);
   const origin = getRoomGridOrigin(room);
+  const anchor = room.gridAnchor || "cellCenter";
 
   outCtx.save();
   pathRoom(outCtx, room.points);
@@ -986,8 +1118,11 @@ function drawGridInRoom(outCtx, room, grid) {
   outCtx.strokeStyle = hexToRgba(grid.color, grid.opacity);
   outCtx.lineWidth = grid.lineWidth;
 
-  const firstX = origin.x - stepX / 2 + Math.floor((bounds.minX - (origin.x - stepX / 2)) / stepX) * stepX;
-  const firstY = origin.y - stepY / 2 + Math.floor((bounds.minY - (origin.y - stepY / 2)) / stepY) * stepY;
+  const lineBaseX = anchor === "intersection" ? origin.x : origin.x - stepX / 2;
+  const lineBaseY = anchor === "intersection" ? origin.y : origin.y - stepY / 2;
+
+  const firstX = lineBaseX + Math.floor((bounds.minX - lineBaseX) / stepX) * stepX;
+  const firstY = lineBaseY + Math.floor((bounds.minY - lineBaseY) / stepY) * stepY;
 
   for (let x = firstX; x <= bounds.maxX + stepX; x += stepX) {
     outCtx.beginPath();
@@ -1060,11 +1195,15 @@ function getRoomCells(room, grid) {
   const stepY = pxPerMeter * grid.heightMeters;
   const bounds = getBounds(room.points);
   const origin = getRoomGridOrigin(room);
+  const anchor = room.gridAnchor || "cellCenter";
 
   const cells = [];
 
-  const firstCenterX = origin.x + Math.floor((bounds.minX - origin.x) / stepX) * stepX;
-  const firstCenterY = origin.y + Math.floor((bounds.minY - origin.y) / stepY) * stepY;
+  const centerBaseX = anchor === "intersection" ? origin.x + stepX / 2 : origin.x;
+  const centerBaseY = anchor === "intersection" ? origin.y + stepY / 2 : origin.y;
+
+  const firstCenterX = centerBaseX + Math.floor((bounds.minX - centerBaseX) / stepX) * stepX;
+  const firstCenterY = centerBaseY + Math.floor((bounds.minY - centerBaseY) / stepY) * stepY;
 
   let row = 0;
   for (let y = firstCenterY; y <= bounds.maxY + stepY; y += stepY) {
@@ -1080,7 +1219,6 @@ function getRoomCells(room, grid) {
 
   return cells;
 }
-
 
 
 
@@ -1403,6 +1541,111 @@ function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+function cloneSettings(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function getSettingsFromRoom(room) {
+  return {
+    gridOriginMode: room.gridOriginMode || "center",
+    gridAnchor: room.gridAnchor || "cellCenter",
+    grid: cloneSettings(room.grid),
+    labels: cloneSettings(room.labels)
+  };
+}
+
+function applySettingsToRoom(room, settings) {
+  const normalized = normalizeSettingsFromFile(settings);
+
+  room.gridOriginMode = normalized.gridOriginMode || "center";
+  room.gridAnchor = normalized.gridAnchor || "cellCenter";
+  room.manualCenter = null;
+  room.grid = cloneSettings(normalized.grid);
+  room.labels = cloneSettings(normalized.labels);
+}
+
+function normalizeSettingsFromFile(data) {
+  const source = data && data.type === "siatka-area-default-settings"
+    ? data.settings
+    : data;
+
+  const merged = cloneSettings(FACTORY_DEFAULT_AREA_SETTINGS);
+
+  if (source && typeof source === "object") {
+    if (source.gridOriginMode) merged.gridOriginMode = source.gridOriginMode;
+    if (source.gridAnchor) merged.gridAnchor = source.gridAnchor;
+
+    if (source.grid && typeof source.grid === "object") {
+      merged.grid = { ...merged.grid, ...source.grid };
+    }
+
+    if (source.labels && typeof source.labels === "object") {
+      merged.labels = { ...merged.labels, ...source.labels };
+    }
+  }
+
+  merged.grid.widthValue = Number(merged.grid.widthValue) || 100;
+  merged.grid.heightValue = Number(merged.grid.heightValue) || 100;
+  merged.grid.lineWidth = Number(merged.grid.lineWidth) || 2;
+  merged.grid.opacity = Number(merged.grid.opacity) || 0.55;
+  merged.grid.widthUnit = merged.grid.widthUnit === "m" ? "m" : "cm";
+  merged.grid.heightUnit = merged.grid.heightUnit === "m" ? "m" : "cm";
+  merged.grid.color = merged.grid.color || "#ff0000";
+
+  merged.labels.enabled = Boolean(merged.labels.enabled);
+  merged.labels.prefix = merged.labels.prefix ?? "P";
+  merged.labels.separator = merged.labels.separator ?? "";
+  merged.labels.start = Number(merged.labels.start) || 1;
+  merged.labels.end = merged.labels.end ?? "";
+  merged.labels.numberDigits = Number(merged.labels.numberDigits) || 1;
+  merged.labels.suffixSeparator = merged.labels.suffixSeparator ?? " ";
+  merged.labels.suffix = merged.labels.suffix ?? "";
+  merged.labels.color = merged.labels.color || "#ff0000";
+  merged.labels.opacity = Number(merged.labels.opacity) || 0.9;
+  merged.labels.size = Number(merged.labels.size) || 22;
+  merged.labels.bold = Boolean(merged.labels.bold);
+  merged.labels.position = merged.labels.position || "center";
+  merged.labels.direction = merged.labels.direction || "left-right-down";
+  merged.labels.snake = Boolean(merged.labels.snake);
+  merged.labels.skipMode = merged.labels.skipMode === "gaps" ? "gaps" : "compact";
+
+  return merged;
+}
+
+function downloadDefaultSettingsFile() {
+  const payload = {
+    type: "siatka-area-default-settings",
+    version: 1,
+    savedAt: new Date().toISOString(),
+    settings: cloneSettings(defaultAreaSettings)
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "domyslne-ustawienia-siatki.json";
+  link.click();
+
+  URL.revokeObjectURL(url);
+  updatePresetStatus("Zapisano domyślne ustawienia do pliku.");
+}
+
+function updatePresetStatus(message) {
+  if (!presetStatus) return;
+
+  const grid = defaultAreaSettings.grid;
+  const labels = defaultAreaSettings.labels;
+  const anchor = defaultAreaSettings.gridAnchor === "intersection"
+    ? "przecięcie linii"
+    : "środek kratki";
+
+  const text = `Domyślne: kratka ${grid.widthValue} ${grid.widthUnit} × ${grid.heightValue} ${grid.heightUnit}, siatka ${grid.color}, tekst ${labels.color}, rozmiar ${labels.size}px, ${anchor}.`;
+
+  presetStatus.textContent = message ? `${message} ${text}` : text;
+}
+
 function updateStatus(message) {
   statusImage.textContent = img
     ? `Obraz: ${img.naturalWidth} × ${img.naturalHeight} px`
@@ -1421,7 +1664,7 @@ function updateStatus(message) {
   } else if (pxPerMeter === null) {
     statusMode.textContent = "Teraz: ustaw skalę";
   } else if (manualCenterRoomIndex !== null) {
-    statusMode.textContent = `Teraz: kliknij środek kratki dla obszaru ${manualCenterRoomIndex + 1}`;
+    statusMode.textContent = manualCenterAnchor === "intersection" ? `Teraz: kliknij przecięcie linii dla obszaru ${manualCenterRoomIndex + 1}` : `Teraz: kliknij środek kratki dla obszaru ${manualCenterRoomIndex + 1}`;
   } else {
     statusMode.textContent = "Teraz: zaznacz obszaru";
   }
@@ -1442,4 +1685,5 @@ function escapeHtml(value) {
 }
 
 updateStatus();
+updatePresetStatus();
 updateRoomsPanel();

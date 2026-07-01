@@ -395,3 +395,51 @@ input[type="range"] {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+.presetSettings {
+  background: #fffdf6;
+  border: 2px solid #eadcaa;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.presetSettings h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: #744f00;
+}
+
+.presetSettings p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.38;
+}
+
+.presetButtons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+
+.presetButtons button,
+.presetButtons .button {
+  margin-top: 0;
+}
+
+.importButton input {
+  display: none;
+}
+
+.presetStatus {
+  font-size: 13px;
+}
+
+@media (max-width: 800px) {
+  .presetButtons {
+    grid-template-columns: 1fr;
+  }
+}

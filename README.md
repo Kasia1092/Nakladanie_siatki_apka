@@ -1,21 +1,22 @@
 # Apka do nakładania siatki na JPG/PNG
 
-Wersja poprawiona po v8.
+Wersja z prawym przyciskiem myszy do zamykania obszaru.
 
-## Zmiany
+## Nowa wygoda pracy
 
-- Usunięto informację o wersji z nagłówka strony.
-- Domyślny kolor siatki w nowych obszarach to `#ff0000`.
-- Domyślny kolor napisów/numerów w nowych obszarach to `#ff0000`.
-- Dodano klikalne przyciski:
-  - `Pomniejsz −`,
-  - `Dopasuj widok`,
-  - `Powiększ +`,
-  - `Przesuń widok`.
-- Zoom i przesuwanie zmieniają tylko widok roboczy, nie punkty i nie eksport PNG.
-- Punkty skali, narożniki i środki siatki są oznaczone małymi plusami.
-- Plusy są małe i nie zasłaniają miejsca kliknięcia.
+Podczas zaznaczania obszaru:
 
-## Uwaga
+- **lewy przycisk myszy** — dodaje kolejne narożniki,
+- **prawy przycisk myszy** — zamyka obszar, jeśli zaznaczone są co najmniej 3 narożniki.
 
-Żeby dodawać punkty, tryb `Przesuń widok` musi być wyłączony.
+Dalej działa też przycisk:
+
+- `Zamknij obszar`
+
+Prawy przycisk działa tylko na obrazie roboczym i tylko podczas zwykłego zaznaczania obszaru.
+
+Nie zamknie obszaru, gdy:
+- nie ustawiono jeszcze skali,
+- włączony jest tryb przesuwania widoku,
+- trwa ręczne ustawianie środka/przecięcia siatki,
+- trwa ręczna edycja pojedynczych kratek.
