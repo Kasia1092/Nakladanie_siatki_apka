@@ -443,3 +443,24 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 }
+
+
+.codeCheck {
+  display: inline-block;
+  margin-top: 6px !important;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef8ef;
+  border: 1px solid #b7ddb8;
+  color: #245c2a !important;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+button,
+.button,
+.viewTools,
+.presetSettings,
+.roomSettings {
+  pointer-events: auto;
+}

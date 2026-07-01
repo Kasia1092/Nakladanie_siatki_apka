@@ -1,22 +1,19 @@
 # Apka do nakładania siatki na JPG/PNG
 
-Wersja z prawym przyciskiem myszy do zamykania obszaru.
+Wersja naprawiona technicznie.
 
-## Nowa wygoda pracy
+## Co poprawiono
 
-Podczas zaznaczania obszaru:
+- Prawy przycisk myszy jest blokowany na obrazie od razu, więc nie powinno wyskakiwać menu przeglądarki.
+- Zamknięcie obszaru działa przez `mousedown` prawym przyciskiem, a nie dopiero przez menu kontekstowe.
+- Zapis JSON działa przez zwykły link `data:application/json`, żeby był bardziej odporny na blokady przeglądarki.
+- Dodano widoczny komunikat pod nagłówkiem: `Kod aktywny...`. Jeśli go nie widzisz, strona nadal ładuje stare pliki.
+- Opcja `Auto: przecięcie linii na środku obszaru` jest w karcie każdego zamkniętego obszaru.
 
-- **lewy przycisk myszy** — dodaje kolejne narożniki,
-- **prawy przycisk myszy** — zamyka obszar, jeśli zaznaczone są co najmniej 3 narożniki.
+## Test po podmianie plików
 
-Dalej działa też przycisk:
+Po wejściu na stronę pod nagłówkiem powinno być:
 
-- `Zamknij obszar`
+`Kod aktywny: prawy klik, JSON i przecięcie linii są włączone.`
 
-Prawy przycisk działa tylko na obrazie roboczym i tylko podczas zwykłego zaznaczania obszaru.
-
-Nie zamknie obszaru, gdy:
-- nie ustawiono jeszcze skali,
-- włączony jest tryb przesuwania widoku,
-- trwa ręczne ustawianie środka/przecięcia siatki,
-- trwa ręczna edycja pojedynczych kratek.
+Jeśli tego nie ma, GitHub Pages lub przeglądarka nadal pokazuje stare pliki.

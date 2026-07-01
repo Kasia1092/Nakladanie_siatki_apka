@@ -11,6 +11,7 @@
     <header>
       <h1>Apka do nakładania siatki na JPG/PNG</h1>
       <p>Wgraj zdjęcie, ustaw skalę, zaznacz obszary i pobierz gotowy obraz z siatką.</p>
+      <p id="codeCheck" class="codeCheck">Kod: ładowanie...</p>
     </header>
 
     <section class="steps">
@@ -73,9 +74,9 @@
       <h2>Domyślne ustawienia dla nowych obszarów</h2>
       <p>Nowy obszar tworzy się z aktualnych ustawień domyślnych. Możesz ustawić je z dowolnego obszaru albo przenieść między laptopami plikiem JSON.</p>
       <div class="presetButtons">
-        <button id="savePresetFileBtn" class="light" type="button">Zapisz domyślne do pliku</button>
+        <button id="savePresetFileBtn" class="light" type="button">Zapisz domyślne do pliku JSON</button>
         <label class="button light importButton">
-          Wczytaj domyślne z pliku
+          Wczytaj domyślne z pliku JSON
           <input id="loadPresetFileInput" type="file" accept="application/json,.json" />
         </label>
         <button id="resetPresetBtn" class="light dangerText" type="button">Wyczyść domyślne</button>

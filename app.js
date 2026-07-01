@@ -32,6 +32,7 @@ const savePresetFileBtn = document.getElementById("savePresetFileBtn");
 const loadPresetFileInput = document.getElementById("loadPresetFileInput");
 const resetPresetBtn = document.getElementById("resetPresetBtn");
 const presetStatus = document.getElementById("presetStatus");
+const codeCheck = document.getElementById("codeCheck");
 
 const roomsPanel = document.getElementById("roomsPanel");
 
@@ -94,6 +95,18 @@ const ROOM_COLOR = "rgba(80, 80, 80, 0.9)";
 const SCALE_COLOR = "rgba(255, 0, 0, 0.95)";
 const CENTER_COLOR = "rgba(30, 120, 75, 0.95)";
 
+
+function safeOn(element, eventName, handler) {
+  if (!element) return;
+  element.addEventListener(eventName, handler);
+}
+
+function setCodeCheck(message) {
+  if (codeCheck) {
+    codeCheck.textContent = message;
+  }
+}
+
 function setupCanvasSize() {
   const rect = editCanvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -108,27 +121,28 @@ function setupCanvasSize() {
 window.addEventListener("resize", setupCanvasSize);
 setupCanvasSize();
 
-zoomInBtn.addEventListener("click", (event) => {
+safeOn(zoomInBtn, "click", (event) => {
   event.preventDefault();
   setZoom(view.zoom * 1.25);
 });
 
-zoomOutBtn.addEventListener("click", (event) => {
+safeOn(zoomOutBtn, "click", (event) => {
   event.preventDefault();
   setZoom(view.zoom / 1.25);
 });
 
-fitViewBtn.addEventListener("click", (event) => {
+safeOn(fitViewBtn, "click", (event) => {
   event.preventDefault();
   resetView();
 });
 
-panModeBtn.addEventListener("click", (event) => {
+safeOn(panModeBtn, "click", (event) => {
   event.preventDefault();
   togglePanMode();
 });
 
 editCanvas.addEventListener("pointerdown", (event) => {
+  if (event.button === 2) return;
   if (!img || !isPanMode) return;
 
   event.preventDefault();
@@ -174,11 +188,11 @@ editCanvas.addEventListener("pointercancel", () => {
   editCanvas.classList.remove("panning");
 });
 
-savePresetFileBtn.addEventListener("click", () => {
+safeOn(savePresetFileBtn, "click", () => {
   downloadDefaultSettingsFile();
 });
 
-loadPresetFileInput.addEventListener("change", async () => {
+safeOn(loadPresetFileInput, "change", async () => {
   const file = loadPresetFileInput.files[0];
   if (!file) return;
 
@@ -194,7 +208,7 @@ loadPresetFileInput.addEventListener("change", async () => {
   loadPresetFileInput.value = "";
 });
 
-resetPresetBtn.addEventListener("click", () => {
+safeOn(resetPresetBtn, "click", () => {
   if (!confirm("Wyczyścić domyślne ustawienia i wrócić do czerwonej siatki 100 × 100 cm?")) return;
 
   defaultAreaSettings = cloneSettings(FACTORY_DEFAULT_AREA_SETTINGS);
@@ -245,14 +259,22 @@ function readFileAsDataUrl(file) {
 }
 
 editCanvas.addEventListener("contextmenu", (event) => {
-  if (!img || !drawBox) return;
+  event.preventDefault();
+});
+
+editCanvas.addEventListener("mousedown", (event) => {
+  if (event.button !== 2) return;
 
   event.preventDefault();
 
+  if (!img || !drawBox) return;
   if (isPanMode) return;
   if (manualCenterRoomIndex !== null) return;
   if (cellEditMode !== null) return;
   if (pxPerMeter === null) return;
+
+  const point = getImagePoint(event);
+  if (!point) return;
 
   if (currentRoom.length >= 3) {
     closeCurrentRoom();
@@ -1615,21 +1637,24 @@ function normalizeSettingsFromFile(data) {
 function downloadDefaultSettingsFile() {
   const payload = {
     type: "siatka-area-default-settings",
-    version: 1,
+    version: 2,
     savedAt: new Date().toISOString(),
     settings: cloneSettings(defaultAreaSettings)
   };
 
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  const json = JSON.stringify(payload, null, 2);
+  const dataUrl = "data:application/json;charset=utf-8," + encodeURIComponent(json);
 
   const link = document.createElement("a");
-  link.href = url;
+  link.href = dataUrl;
   link.download = "domyslne-ustawienia-siatki.json";
-  link.click();
+  link.style.display = "none";
 
-  URL.revokeObjectURL(url);
-  updatePresetStatus("Zapisano domyślne ustawienia do pliku.");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  updatePresetStatus("Kliknięto zapis. Plik powinien pojawić się w folderze Pobrane / Downloads.");
 }
 
 function updatePresetStatus(message) {
@@ -1687,3 +1712,4 @@ function escapeHtml(value) {
 updateStatus();
 updatePresetStatus();
 updateRoomsPanel();
+setCodeCheck("Kod aktywny: prawy klik, JSON i przecięcie linii są włączone.");
